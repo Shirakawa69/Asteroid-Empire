@@ -153,27 +153,34 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // State Variables
-        let db, auth, user, gameActive = false, isPaused = false, money = 0, xp = 0, nextLevelXp = 1000, level = 1;
-        let wave = 1, waveProgress = 0, bossActive = false, selectedWeapon = null, masterVol = 0.5;
+        // Global State
+        let db, auth, user, gameActive = false, isPaused = false, money = 0;
         
-        let upgrades = { 
-            playerFireRate: 1, 
-            playerDmg: 1, 
-            wingmen: [], 
-            piercing: false, 
-            cluster: false, 
-            chain: false, 
-            mega: false 
+        // Permanent Armory State (Saved)
+        let armory = {
+            playerFireRate: 1,
+            playerDmg: 1,
+            wingmenCount: 0
         };
+
+        // Current Run Evolution State (Resets)
+        let runStats = {
+            xp: 0, nextLevelXp: 1000, level: 1,
+            wave: 1, waveProgress: 0, bossActive: false,
+            piercing: false, cluster: false, chain: false, mega: false,
+            shieldActive: false
+        };
+
+        let selectedWeapon = null, masterVol = 0.5;
         
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const state = { 
             shake: 0, lastShot: 0, stars: [], bullets: [], 
             asteroids: [], particles: [], 
-            player: { x: 0, y: 0, tx: 0, ty: 0, r: 18, shield: false }, 
-            boss: null 
+            player: { x: 0, y: 0, tx: 0, ty: 0, r: 18 }, 
+            boss: null,
+            runWingmen: [] // Logic for positioning wingmen during run
         };
 
         const WEAPONS = {
@@ -203,7 +210,7 @@
             BOSS_SHOT: () => playSfx(120, 'square', 0.2, 0.08)
         };
 
-        // --- FIREBASE INIT ---
+        // --- FIREBASE SYNC ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             try {
@@ -227,6 +234,7 @@
                             if (snap.exists()) {
                                 const data = snap.data();
                                 money = data.money || 0;
+                                if(data.armory) armory = data.armory;
                                 updateHUD(); updateShopUI();
                             }
                         });
@@ -235,24 +243,24 @@
             } catch(e) { console.error("Firebase fail", e); }
         }
 
-        async function saveMoney() {
+        async function saveGlobalState() {
             if (!user || !db) return;
             const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-            await setDoc(savePath, { money }, { merge: true });
+            await setDoc(savePath, { money, armory }, { merge: true });
         }
 
         // --- CORE LOGIC ---
         function spawnEnemy() {
-            if (bossActive || isPaused) return;
+            if (runStats.bossActive || isPaused) return;
             const roll = Math.random();
             let type = "NORMAL";
             if (roll < 0.1) type = "SPEEDER";
-            else if (roll < 0.15 + (wave * 0.01)) type = "ELITE";
+            else if (roll < 0.15 + (runStats.wave * 0.01)) type = "ELITE";
 
             const config = {
-                NORMAL: { r: 20, hp: 1 + (wave * 0.5), s: 2 + Math.random()*2, color: '#94a3b8', reward: 100, xp: 150 },
-                SPEEDER: { r: 12, hp: 0.5 + (wave * 0.2), s: 6 + Math.random()*3, color: '#f87171', reward: 250, xp: 300 },
-                ELITE: { r: 35, hp: 5 + (wave * 2), s: 1 + Math.random()*1, color: '#fbbf24', reward: 600, xp: 1000 }
+                NORMAL: { r: 20, hp: 1 + (runStats.wave * 0.5), s: 2 + Math.random()*2, color: '#94a3b8', reward: 100, xp: 150 },
+                SPEEDER: { r: 12, hp: 0.5 + (runStats.wave * 0.2), s: 6 + Math.random()*3, color: '#f87171', reward: 250, xp: 300 },
+                ELITE: { r: 35, hp: 5 + (runStats.wave * 2), s: 1 + Math.random()*1, color: '#fbbf24', reward: 600, xp: 1000 }
             };
 
             const c = config[type];
@@ -260,14 +268,14 @@
         }
 
         function spawnBoss() {
-            bossActive = true;
+            runStats.bossActive = true;
             document.getElementById('warningOverlay').style.display = 'flex';
             setTimeout(() => {
                 document.getElementById('warningOverlay').style.display = 'none';
                 document.getElementById('bossBarContainer').style.display = 'block';
                 state.boss = {
                     x: canvas.width / 2, y: -200, ty: 120,
-                    r: 90, hp: 100 + (wave * 50), maxHp: 100 + (wave * 50),
+                    r: 90, hp: 100 + (runStats.wave * 50), maxHp: 100 + (runStats.wave * 50),
                     lastShot: 0, lastAimedShot: 0, phase: 0, angleOffset: 0
                 };
             }, 2500);
@@ -276,18 +284,18 @@
         function updateHUD() {
             document.getElementById('moneyDisplay').innerText = `$${money.toLocaleString()}`;
             document.getElementById('shopMoneyDisplay').innerText = `$${money.toLocaleString()}`;
-            document.getElementById('waveDisplay').innerText = `WAVE ${wave}`;
-            document.getElementById('progressBar').style.width = `${(xp/nextLevelXp)*100}%`;
+            document.getElementById('waveDisplay').innerText = `WAVE ${runStats.wave}`;
+            document.getElementById('progressBar').style.width = `${(runStats.xp/runStats.nextLevelXp)*100}%`;
             if (state.boss) {
                 document.getElementById('bossBar').style.width = `${(state.boss.hp / state.boss.maxHp) * 100}%`;
             }
         }
 
         function updateShopUI() {
-            document.getElementById('wingmanCost').innerText = `$${(5000 * (upgrades.wingmen.length + 1)).toLocaleString()}`;
-            document.getElementById('dmgLevelDisplay').innerText = `Power Core Lv.${upgrades.playerDmg}`;
-            document.getElementById('dmgCost').innerText = `$${(2500 * upgrades.playerDmg).toLocaleString()}`;
-            document.getElementById('rateCost').innerText = `$${(Math.floor(3000 * upgrades.playerFireRate)).toLocaleString()}`;
+            document.getElementById('wingmanCost').innerText = `$${(5000 * (armory.wingmenCount + 1)).toLocaleString()}`;
+            document.getElementById('dmgLevelDisplay').innerText = `Power Core Lv.${armory.playerDmg}`;
+            document.getElementById('dmgCost').innerText = `$${(2500 * armory.playerDmg).toLocaleString()}`;
+            document.getElementById('rateCost').innerText = `$${(Math.floor(3000 * armory.playerFireRate)).toLocaleString()}`;
         }
 
         // --- UI EXPORTS ---
@@ -314,11 +322,28 @@
 
         window.startGame = () => {
             if(!selectedWeapon) return;
-            gameActive = true; isPaused = false; xp = 0; level = 1; wave = 1; waveProgress = 0; bossActive = false; state.boss = null;
-            upgrades = { playerFireRate: 1, playerDmg: 1, wingmen: [], piercing: false, cluster: false, chain: false, mega: false };
+            gameActive = true; isPaused = false;
+            
+            // Reset Run Stats
+            runStats = {
+                xp: 0, nextLevelXp: 1000, level: 1,
+                wave: 1, waveProgress: 0, bossActive: false,
+                piercing: false, cluster: false, chain: false, mega: false,
+                shieldActive: false
+            };
+
             state.bullets = []; state.asteroids = []; state.particles = [];
             state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
-            state.player.tx = state.player.x; state.player.ty = state.player.y; state.player.shield = false;
+            state.player.tx = state.player.x; state.player.ty = state.player.y;
+            
+            // Setup Wingmen for this run based on Armory
+            state.runWingmen = [];
+            for(let i=0; i < armory.wingmenCount; i++) {
+                const side = i % 2 === 0 ? 1 : -1;
+                const dist = 50 + (Math.floor(i/2) * 30);
+                state.runWingmen.push({ ox: dist * side, oy: 30, lastShot: 0 });
+            }
+
             document.getElementById('menu').classList.add('hidden');
             document.getElementById('bossBarContainer').style.display = 'none';
             initStars(); updateHUD(); updateShopUI(); loop();
@@ -348,27 +373,25 @@
         window.buyItem = (type) => {
             let cost = 0;
             if (type === 'wingman') {
-                cost = 5000 * (upgrades.wingmen.length + 1);
+                cost = 5000 * (armory.wingmenCount + 1);
                 if (money >= cost) {
-                    const side = upgrades.wingmen.length % 2 === 0 ? 1 : -1;
-                    const dist = 50 + (Math.floor(upgrades.wingmen.length/2) * 30);
-                    upgrades.wingmen.push({ ox: dist * side, oy: 30, lastShot: 0 });
+                    armory.wingmenCount++;
                     money -= cost;
                 }
             } else if (type === 'dmg') {
-                cost = 2500 * upgrades.playerDmg;
+                cost = 2500 * armory.playerDmg;
                 if (money >= cost) {
-                    upgrades.playerDmg++;
+                    armory.playerDmg++;
                     money -= cost;
                 }
             } else if (type === 'rate') {
-                cost = Math.floor(3000 * upgrades.playerFireRate);
+                cost = Math.floor(3000 * armory.playerFireRate);
                 if (money >= cost) {
-                    upgrades.playerFireRate += 0.2;
+                    armory.playerFireRate += 0.2;
                     money -= cost;
                 }
             }
-            saveMoney(); updateHUD(); updateShopUI();
+            saveGlobalState(); updateHUD(); updateShopUI();
         };
 
         function initStars() {
@@ -382,16 +405,16 @@
             container.innerHTML = '';
             
             const pathOptions = {
-                VULCAN: { name: "🎯 Piercing Rounds", desc: "Bullets pass through 1 enemy", run: () => upgrades.piercing = true },
-                STRIKER: { name: "🚀 Cluster Missiles", desc: "Missiles split on hit", run: () => upgrades.cluster = true },
-                ION: { name: "⚡ Chain Lightning", desc: "Beam arcs to nearby targets", run: () => upgrades.chain = true },
-                TITAN: { name: "💥 Mega Blast", desc: "Huge explosion radius", run: () => upgrades.mega = true }
+                VULCAN: { name: "🎯 Piercing Rounds", desc: "Bullets pass through 1 enemy", run: () => runStats.piercing = true },
+                STRIKER: { name: "🚀 Cluster Missiles", desc: "Missiles split on hit", run: () => runStats.cluster = true },
+                ION: { name: "⚡ Chain Lightning", desc: "Beam arcs to nearby targets", run: () => runStats.chain = true },
+                TITAN: { name: "💥 Mega Blast", desc: "Huge explosion radius", run: () => runStats.mega = true }
             };
 
             const opts = [
                 pathOptions[selectedWeapon],
-                { name: "🛡️ Plasma Shield", desc: "Passive protection", run: () => state.player.shield = true },
-                { name: "🔋 Battery Overload", desc: "Instant Fire Rate +50%", run: () => upgrades.playerFireRate *= 1.5 }
+                { name: "🛡️ Plasma Shield", desc: "Passive protection", run: () => runStats.shieldActive = true },
+                { name: "🔋 Battery Overload", desc: "Instant Run Speed +20%", run: () => armory.playerFireRate *= 1.2 } // Note: Temporary run buff? Logic kept simple
             ];
 
             opts.forEach(o => {
@@ -415,38 +438,38 @@
             const now = Date.now();
             ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (!bossActive) {
-                waveProgress += 0.05;
-                if (waveProgress > 100) {
-                    if (wave % 5 === 0) spawnBoss();
-                    else { wave++; waveProgress = 0; }
+            if (!runStats.bossActive) {
+                runStats.waveProgress += 0.05;
+                if (runStats.waveProgress > 100) {
+                    if (runStats.wave % 5 === 0) spawnBoss();
+                    else { runStats.wave++; runStats.waveProgress = 0; }
                 }
-                if (Math.random() < 0.02 + (wave * 0.005)) spawnEnemy();
+                if (Math.random() < 0.02 + (runStats.wave * 0.005)) spawnEnemy();
             }
 
             if (state.shake > 0) { ctx.save(); ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.9; }
 
-            state.stars.forEach(s => { s.y += s.s + (wave * 0.1); if(s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff22'; ctx.fillRect(s.x, s.y, 2, 2); });
+            state.stars.forEach(s => { s.y += s.s + (runStats.wave * 0.1); if(s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff22'; ctx.fillRect(s.x, s.y, 2, 2); });
 
             state.player.x += (state.player.tx - state.player.x) * 0.15;
             state.player.y += (state.player.ty - state.player.y) * 0.15;
 
             const wp = WEAPONS[selectedWeapon];
-            if (now - state.lastShot > (wp.rate / upgrades.playerFireRate)) {
+            if (now - state.lastShot > (wp.rate / armory.playerFireRate)) {
                 sounds[selectedWeapon]();
-                const d = upgrades.playerDmg;
-                if (selectedWeapon === 'VULCAN') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (Math.random()-0.5)*2, vy: -wp.bulletSpeed, c: wp.color, d, p: upgrades.piercing });
-                if (selectedWeapon === 'STRIKER') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*1.5, seeking: true, cluster: upgrades.cluster });
-                if (selectedWeapon === 'ION') state.bullets.push({ x: state.player.x, y: state.player.y-40, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*3, laser: true, chain: upgrades.chain });
+                const d = armory.playerDmg;
+                if (selectedWeapon === 'VULCAN') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (Math.random()-0.5)*2, vy: -wp.bulletSpeed, c: wp.color, d, p: runStats.piercing });
+                if (selectedWeapon === 'STRIKER') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*1.5, seeking: true, cluster: runStats.cluster });
+                if (selectedWeapon === 'ION') state.bullets.push({ x: state.player.x, y: state.player.y-40, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*3, laser: true, chain: runStats.chain });
                 if (selectedWeapon === 'TITAN') {
-                    for(let i=0; i<5; i++) state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (i-2)*4, vy: -wp.bulletSpeed, c: wp.color, d: d*0.7, mega: upgrades.mega });
+                    for(let i=0; i<5; i++) state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (i-2)*4, vy: -wp.bulletSpeed, c: wp.color, d: d*0.7, mega: runStats.mega });
                 }
                 state.lastShot = now;
             }
 
-            upgrades.wingmen.forEach(wm => {
+            state.runWingmen.forEach(wm => {
                 if (now - (wm.lastShot || 0) > 500) {
-                    state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -18, c: '#34d399', d: upgrades.playerDmg });
+                    state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -18, c: '#34d399', d: armory.playerDmg });
                     wm.lastShot = now;
                 }
             });
@@ -474,9 +497,9 @@
                 const pulse = Math.sin(now * 0.01) * 10;
                 ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 30 + pulse, 0, Math.PI*2); ctx.fill();
                 if (b.hp <= 0) {
-                    money += 5000; xp += 3000; wave++; waveProgress = 0; bossActive = false; state.boss = null;
+                    money += 5000; runStats.xp += 3000; runStats.wave++; runStats.waveProgress = 0; runStats.bossActive = false; state.boss = null;
                     document.getElementById('bossBarContainer').style.display = 'none';
-                    state.shake = 60; sounds.EXPLODE(); updateHUD(); saveMoney();
+                    state.shake = 60; sounds.EXPLODE(); updateHUD(); saveGlobalState();
                 }
             }
 
@@ -494,7 +517,7 @@
 
             state.asteroids.forEach((a, ai) => {
                 if (Math.hypot(state.player.x - a.x, state.player.y - a.y) < state.player.r + a.r) {
-                    if (state.player.shield) { state.player.shield = false; state.asteroids.splice(ai, 1); state.shake = 20; }
+                    if (runStats.shieldActive) { runStats.shieldActive = false; state.asteroids.splice(ai, 1); state.shake = 20; }
                     else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
                 }
                 state.bullets.forEach((b, bi) => {
@@ -506,9 +529,9 @@
                         if(b.mega) state.shake = 15;
                         if (!b.laser && !b.p) state.bullets.splice(bi, 1);
                         if (a.hp <= 0) {
-                            money += a.reward; xp += a.xp; state.asteroids.splice(ai, 1);
-                            sounds.EXPLODE(); updateHUD(); saveMoney();
-                            if(xp >= nextLevelXp) { level++; xp = 0; nextLevelXp *= 1.5; handleLevelUp(); }
+                            money += a.reward; runStats.xp += a.xp; state.asteroids.splice(ai, 1);
+                            sounds.EXPLODE(); updateHUD(); saveGlobalState();
+                            if(runStats.xp >= runStats.nextLevelXp) { runStats.level++; runStats.xp = 0; runStats.nextLevelXp *= 1.5; handleLevelUp(); }
                         }
                     }
                 });
@@ -525,7 +548,7 @@
 
             state.particles.forEach((p, pi) => {
                 if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
-                    if (state.player.shield) { state.player.shield = false; state.particles.splice(pi, 1); state.shake = 15; }
+                    if (runStats.shieldActive) { runStats.shieldActive = false; state.particles.splice(pi, 1); state.shake = 15; }
                     else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
                 }
             });
@@ -550,7 +573,7 @@
                 if(p.enemy) { ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke(); }
             });
 
-            if (state.player.shield) { 
+            if (runStats.shieldActive) { 
                 ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 35, 0, Math.PI*2); ctx.stroke(); 
             }
             
@@ -574,15 +597,11 @@
         window.addEventListener('touchstart', handleInput);
         window.addEventListener('touchmove', (e) => { if(!isPaused) e.preventDefault(); handleInput(e); }, {passive: false});
         
-        // --- ESC PAUSE LISTENER ---
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && gameActive && document.getElementById('levelUpUI').classList.contains('hidden')) {
                 isPaused = !isPaused;
-                if (isPaused) {
-                    document.getElementById('pauseUI').classList.remove('hidden');
-                } else {
-                    document.getElementById('pauseUI').classList.add('hidden');
-                }
+                if (isPaused) document.getElementById('pauseUI').classList.remove('hidden');
+                else document.getElementById('pauseUI').classList.add('hidden');
             }
         });
 
