@@ -12,20 +12,33 @@
         .weapon-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .weapon-card:hover { transform: translateY(-5px) scale(1.02); }
         .weapon-card.selected { border-color: #6366f1; background: rgba(99, 102, 241, 0.2); box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+        #bossBarContainer { display: none; }
+        #warningOverlay { display: none; pointer-events: none; }
     </style>
 </head>
 <body class="no-select text-white">
 
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Warning Overlay -->
+    <div id="warningOverlay" class="absolute inset-0 flex items-center justify-center bg-red-900/20 z-40 animate-pulse">
+        <h2 class="text-6xl font-black text-red-500 italic tracking-tighter">BOSS APPROACHING</h2>
+    </div>
+
     <!-- HUD -->
     <div id="hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none flex flex-col items-center gap-2">
+        <div id="bossBarContainer" class="w-full max-w-xl mb-2">
+            <div class="text-center text-red-500 font-black text-xs uppercase tracking-widest mb-1">GOLIATH CLASS THREAT</div>
+            <div class="w-full bg-slate-900/80 rounded-full h-4 border-2 border-red-900 overflow-hidden">
+                <div id="bossBar" class="h-full bg-red-600 transition-all duration-100" style="width: 100%"></div>
+            </div>
+        </div>
         <div class="w-full max-w-md bg-slate-800/50 backdrop-blur rounded-full h-3 border border-slate-600 relative overflow-hidden">
             <div id="progressBar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300" style="width: 0%"></div>
         </div>
         <div class="flex justify-between w-full max-w-md px-2">
             <div id="moneyDisplay" class="text-2xl font-black text-yellow-400 drop-shadow-md">$0</div>
-            <div id="levelDisplay" class="text-xl font-black text-indigo-400 drop-shadow-md">LVL 1</div>
+            <div id="waveDisplay" class="text-xl font-black text-indigo-400 drop-shadow-md italic">WAVE 1</div>
         </div>
     </div>
 
@@ -33,64 +46,58 @@
     <div id="menu" class="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50">
         <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-indigo-500/50 w-full max-w-2xl text-center shadow-2xl">
             <h1 class="text-7xl font-black italic mb-2 tracking-tighter bg-gradient-to-b from-white to-indigo-400 bg-clip-text text-transparent">STORM</h1>
-            <p class="text-indigo-400 mb-8 font-medium italic">Select your Loadout, Pookie 🔫</p>
+            <p class="text-indigo-400 mb-8 font-medium italic">WAVE DEFENSE SYSTEM ACTIVE 🔫</p>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div onclick="window.selectWeapon('VULCAN')" id="card-VULCAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">🎯</span>
                     <div class="font-black text-xs mt-2 uppercase">Vulcan</div>
-                    <div class="text-[10px] text-slate-400">High Speed Fire</div>
                 </div>
                 <div onclick="window.selectWeapon('STRIKER')" id="card-STRIKER" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">🚀</span>
                     <div class="font-black text-xs mt-2 uppercase">Striker</div>
-                    <div class="text-[10px] text-slate-400">Heat-Seekers</div>
                 </div>
                 <div onclick="window.selectWeapon('ION')" id="card-ION" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">⚡</span>
                     <div class="font-black text-xs mt-2 uppercase">Ion Beam</div>
-                    <div class="text-[10px] text-slate-400">Piercing Laser</div>
                 </div>
                 <div onclick="window.selectWeapon('TITAN')" id="card-TITAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">💥</span>
                     <div class="font-black text-xs mt-2 uppercase">Titan</div>
-                    <div class="text-[10px] text-slate-400">Massive Flak</div>
                 </div>
             </div>
 
-            <button id="startBtn" onclick="window.startGame()" disabled class="w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all shadow-lg">PICK A WEAPON</button>
-            <button onclick="window.showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-white/5">OPEN ARMORY</button>
+            <button id="startBtn" onclick="window.startGame()" disabled class="w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all">PICK A WEAPON</button>
+            <button onclick="window.showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all">OPEN ARMORY</button>
         </div>
     </div>
 
-    <!-- Shop -->
+    <!-- Shop & Level Up Screens -->
     <div id="shopUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[60]">
         <div class="bg-slate-900 p-8 rounded-3xl border border-indigo-500/30 w-[380px] shadow-2xl">
-            <h2 class="text-3xl font-black text-indigo-400 mb-6 uppercase italic tracking-widest text-center">Armory</h2>
+            <h2 class="text-3xl font-black text-indigo-400 mb-6 uppercase italic text-center tracking-widest">Armory</h2>
             <div class="space-y-4">
                 <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-white/5">
                     <div>
                         <div class="font-bold text-emerald-400">Wingman Drone</div>
                         <div id="wingmanCost" class="text-sm font-black text-yellow-400">$5,000</div>
                     </div>
-                    <button onclick="window.buyItem('wingman')" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">BUY</button>
+                    <button onclick="window.buyItem('wingman')" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2 rounded-lg font-bold transition-colors">BUY</button>
                 </div>
                 <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-white/5">
                     <div>
-                        <div id="dmgLevelDisplay" class="font-bold text-blue-400 font-black">Power Lv.1</div>
+                        <div id="dmgLevelDisplay" class="font-bold text-blue-400">Power Lv.1</div>
                         <div id="dmgCost" class="text-sm font-black text-yellow-400">$2,500</div>
                     </div>
-                    <button onclick="window.buyItem('dmg')" class="bg-blue-600 hover:bg-blue-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">UP</button>
+                    <button onclick="window.buyItem('dmg')" class="bg-blue-600 hover:bg-blue-500 px-5 py-2 rounded-lg font-bold transition-colors">UP</button>
                 </div>
             </div>
-            <button onclick="window.closeShop()" class="mt-8 w-full py-4 rounded-xl font-bold bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700">CLOSE</button>
+            <button onclick="window.closeShop()" class="mt-8 w-full py-4 rounded-xl bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 transition-all">CLOSE</button>
         </div>
     </div>
 
-    <!-- Level Up -->
     <div id="levelUpUI" class="absolute inset-0 hidden flex flex-col items-center justify-center bg-black/95 z-50 p-6 text-center">
-        <h2 class="text-6xl font-black text-yellow-400 mb-2 italic animate-pulse">LEVEL UP!</h2>
-        <p class="text-slate-400 mb-10">Choose an Evolution</p>
+        <h2 class="text-6xl font-black text-yellow-400 mb-2 italic animate-pulse">EVOLUTION</h2>
         <div id="optionsContainer" class="flex flex-col gap-4 w-full max-w-md"></div>
     </div>
 
@@ -99,30 +106,53 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        console.log("Pookie, the script is running! 🚀");
-
-        // Global State
-        let db = null;
-        let auth = null;
-        let user = null;
-        let gameActive = false;
-        let money = 0;
-        let score = 0;
-        let level = 1;
-        let nextLevelScore = 2000;
-        let selectedWeapon = null;
+        // State Variables
+        let db, auth, user, gameActive = false, money = 0, score = 0, xp = 0, nextLevelXp = 1000, level = 1;
+        let wave = 1, waveProgress = 0, bossActive = false, selectedWeapon = null;
+        let upgrades = { playerFireRate: 1, playerDmg: 1, wingmen: [], pathUpgrades: { VULCAN: 1, STRIKER: 1, ION: 1, TITAN: 1 } };
         
-        let upgrades = { 
-            playerFireRate: 1, 
-            playerDmg: 1, 
-            multiShot: 1, 
-            wingmen: [],
-            pathUpgrades: { VULCAN: 1, STRIKER: 1, ION: 1, TITAN: 1 }
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const state = { 
+            shake: 0, 
+            lastShot: 0, 
+            stars: [], 
+            bullets: [], 
+            asteroids: [], 
+            particles: [], 
+            player: { x: 0, y: 0, tx: 0, ty: 0, r: 18, shield: false }, 
+            boss: null 
         };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
+        const WEAPONS = {
+            VULCAN: { rate: 100, color: '#818cf8', bulletSpeed: 20 },
+            STRIKER: { rate: 650, color: '#f472b6', bulletSpeed: 10, seeking: true },
+            ION: { rate: 900, color: '#22d3ee', bulletSpeed: 40, laser: true },
+            TITAN: { rate: 600, color: '#fbbf24', bulletSpeed: 14 }
+        };
 
-        // Firebase logic
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(f, t, d, v=0.05) {
+            if(audioCtx.state === 'suspended') return;
+            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+            o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + d);
+            g.gain.setValueAtTime(v, audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime+d);
+        }
+
+        const sounds = {
+            VULCAN: () => playSfx(400, 'square', 0.1),
+            STRIKER: () => playSfx(200, 'sawtooth', 0.2),
+            ION: () => playSfx(800, 'sine', 0.3),
+            TITAN: () => playSfx(150, 'triangle', 0.15),
+            EXPLODE: () => playSfx(100, 'sawtooth', 0.4, 0.1),
+            LEVEL: () => playSfx(600, 'sine', 0.8, 0.15),
+            BOSS_SHOT: () => playSfx(120, 'square', 0.2, 0.08)
+        };
+
+        // --- FIREBASE INIT ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             try {
                 const firebaseConfig = JSON.parse(__firebase_config);
@@ -163,86 +193,82 @@
             await setDoc(savePath, { money, upgrades }, { merge: true });
         }
 
-        // Sound Engine
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSfx(freq, type, duration, vol = 0.1) {
-            if(audioCtx.state === 'suspended') return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+        // --- WAVE & ENEMY LOGIC ---
+        function spawnEnemy() {
+            if (bossActive) return;
+            const roll = Math.random();
+            let type = "NORMAL";
+            if (roll < 0.1) type = "SPEEDER";
+            else if (roll < 0.15 + (wave * 0.01)) type = "ELITE";
+
+            const config = {
+                NORMAL: { r: 20, hp: 1 + (wave * 0.5), s: 2 + Math.random()*2, color: '#94a3b8', reward: 100, xp: 150 },
+                SPEEDER: { r: 12, hp: 0.5 + (wave * 0.2), s: 6 + Math.random()*3, color: '#f87171', reward: 250, xp: 300 },
+                ELITE: { r: 35, hp: 5 + (wave * 2), s: 1 + Math.random()*1, color: '#fbbf24', reward: 600, xp: 1000 }
+            };
+
+            const c = config[type];
+            state.asteroids.push({ x: Math.random()*canvas.width, y: -50, ...c, type });
         }
 
-        const sounds = {
-            VULCAN: () => playSfx(400, 'square', 0.1, 0.05),
-            STRIKER: () => playSfx(200, 'sawtooth', 0.2, 0.08),
-            ION: () => playSfx(800, 'sine', 0.3, 0.1),
-            TITAN: () => playSfx(150, 'triangle', 0.15, 0.12),
-            EXPLODE: () => playSfx(100, 'sawtooth', 0.4, 0.15),
-            LEVEL: () => playSfx(600, 'sine', 0.8, 0.2)
-        };
+        function spawnBoss() {
+            bossActive = true;
+            document.getElementById('warningOverlay').style.display = 'flex';
+            
+            setTimeout(() => {
+                document.getElementById('warningOverlay').style.display = 'none';
+                document.getElementById('bossBarContainer').style.display = 'block';
+                state.boss = {
+                    x: canvas.width / 2, y: -200, ty: 120,
+                    r: 90, hp: 100 + (wave * 50), maxHp: 100 + (wave * 50),
+                    lastShot: 0, lastAimedShot: 0, phase: 0, angleOffset: 0
+                };
+            }, 2500);
+        }
 
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        const state = {
-            shake: 0,
-            lastWeaponShot: 0,
-            stars: [],
-            bullets: [],
-            asteroids: [],
-            player: { x: 0, y: 0, tx: 0, ty: 0, r: 18, shield: false },
-            difficulty: 1
-        };
+        function updateHUD() {
+            document.getElementById('moneyDisplay').innerText = `$${money.toLocaleString()}`;
+            document.getElementById('waveDisplay').innerText = `WAVE ${wave}`;
+            document.getElementById('progressBar').style.width = `${(xp/nextLevelXp)*100}%`;
+            if (state.boss) {
+                document.getElementById('bossBar').style.width = `${(state.boss.hp / state.boss.maxHp) * 100}%`;
+            }
+        }
 
-        const WEAPONS = {
-            VULCAN: { rate: 100, color: '#818cf8', bulletSpeed: 20 },
-            STRIKER: { rate: 650, color: '#f472b6', bulletSpeed: 10, seeking: true },
-            ION: { rate: 900, color: '#22d3ee', bulletSpeed: 40, laser: true },
-            TITAN: { rate: 600, color: '#fbbf24', bulletSpeed: 14 }
-        };
+        function updateShopUI() {
+            document.getElementById('wingmanCost').innerText = `$${(5000 * (upgrades.wingmen.length + 1)).toLocaleString()}`;
+            document.getElementById('dmgLevelDisplay').innerText = `Power Lv.${upgrades.playerDmg}`;
+            document.getElementById('dmgCost').innerText = `$${(2500 * upgrades.playerDmg).toLocaleString()}`;
+        }
 
         // --- GLOBAL EXPORTS ---
         window.selectWeapon = (id) => {
-            console.log("Weapon selected:", id);
             selectedWeapon = id;
-            document.querySelectorAll('.weapon-card').forEach(card => card.classList.remove('selected'));
+            document.querySelectorAll('.weapon-card').forEach(c => c.classList.remove('selected'));
             document.getElementById('card-' + id).classList.add('selected');
             const startBtn = document.getElementById('startBtn');
             startBtn.disabled = false;
-            startBtn.innerText = "LAUNCH MISSION";
-            startBtn.className = "w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-indigo-600 text-white hover:scale-105 transition-all shadow-indigo-500/20 shadow-xl";
+            startBtn.innerText = "ENGAGE WAVE";
+            startBtn.className = "w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-indigo-600 text-white shadow-xl hover:scale-105 transition-all";
             if(audioCtx.state === 'suspended') audioCtx.resume();
         };
 
         window.startGame = () => {
             if(!selectedWeapon) return;
-            console.log("Game starting!");
-            gameActive = true;
-            score = 0;
-            level = 1;
-            nextLevelScore = 2000;
-            state.difficulty = 1;
-            state.bullets = [];
-            state.asteroids = [];
-            state.player.x = canvas.width / 2;
-            state.player.y = canvas.height * 0.8;
-            state.player.tx = state.player.x;
-            state.player.ty = state.player.y;
+            gameActive = true; xp = 0; level = 1; wave = 1; waveProgress = 0; bossActive = false; state.boss = null;
+            state.bullets = []; state.asteroids = []; state.particles = [];
+            state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
+            state.player.tx = state.player.x; state.player.ty = state.player.y;
             document.getElementById('menu').classList.add('hidden');
-            initStars();
-            updateHUD();
-            loop();
+            document.getElementById('bossBarContainer').style.display = 'none';
+            initStars(); updateHUD(); loop();
         };
 
-        window.showShop = () => document.getElementById('shopUI').classList.remove('hidden');
+        window.showShop = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('shopUI').classList.remove('hidden');
+        };
+        
         window.closeShop = () => document.getElementById('shopUI').classList.add('hidden');
 
         window.buyItem = (type) => {
@@ -267,54 +293,25 @@
             updateShopUI();
         };
 
-        function updateShopUI() {
-            document.getElementById('wingmanCost').innerText = `$${(5000 * (upgrades.wingmen.length + 1)).toLocaleString()}`;
-            document.getElementById('dmgLevelDisplay').innerText = `Power Lv.${upgrades.playerDmg}`;
-            document.getElementById('dmgCost').innerText = `$${(2500 * upgrades.playerDmg).toLocaleString()}`;
-        }
-
         function initStars() {
             state.stars = [];
             for(let i=0; i<80; i++) state.stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2 + 1 });
         }
 
-        function updateHUD() {
-            document.getElementById('moneyDisplay').innerText = `$${money.toLocaleString()}`;
-            document.getElementById('levelDisplay').innerText = `LVL ${level}`;
-            const progress = Math.min(100, ((score - (nextLevelScore-3000)) / 3000) * 100);
-            document.getElementById('progressBar').style.width = `${progress}%`;
-        }
-
         function handleLevelUp() {
-            sounds.LEVEL();
-            gameActive = false;
+            sounds.LEVEL(); gameActive = false;
             const container = document.getElementById('optionsContainer');
             container.innerHTML = '';
-            
-            const generalOpts = [
-                { name: "🛡️ Plasma Shield", desc: "Gain 1-hit protection", run: () => state.player.shield = true },
-                { name: "🔋 Battery Boost", desc: "Fire Rate +15%", run: () => upgrades.playerFireRate *= 1.15 }
+            const opts = [
+                { name: "🛡️ Plasma Shield", desc: "Gain protection", run: () => state.player.shield = true },
+                { name: "🔋 Battery Boost", desc: "Fire Rate +20%", run: () => upgrades.playerFireRate *= 1.2 },
+                { name: "💎 Bounty Hunter", desc: "Instant $1,000 Grant", run: () => money += 1000 }
             ];
-
-            const pathOpts = {
-                VULCAN: { name: "🌪️ Storm Rounds", desc: "Double Projectile Speed", run: () => upgrades.pathUpgrades.VULCAN *= 1.5 },
-                STRIKER: { name: "🏹 Tracker V2", desc: "Better Seeking Speed", run: () => upgrades.pathUpgrades.STRIKER += 0.5 },
-                ION: { name: "💡 Wide Beam", desc: "Increase Laser Width", run: () => upgrades.pathUpgrades.ION += 0.5 },
-                TITAN: { name: "💥 Flak Wall", desc: "+2 Spread Bullets", run: () => upgrades.pathUpgrades.TITAN += 2 }
-            };
-
-            const pool = [...generalOpts, pathOpts[selectedWeapon]];
-            pool.forEach(o => {
+            opts.forEach(o => {
                 const div = document.createElement('div');
-                div.className = "bg-slate-900 border border-indigo-500/50 p-6 rounded-2xl cursor-pointer hover:bg-indigo-900/50 transition-all hover:scale-105 active:scale-95";
-                div.innerHTML = `<div class="text-xl font-black text-white">${o.name}</div><div class="text-sm text-slate-400">${o.desc}</div>`;
-                div.onclick = () => {
-                    o.run();
-                    save();
-                    document.getElementById('levelUpUI').classList.add('hidden');
-                    gameActive = true;
-                    loop();
-                };
+                div.className = "bg-slate-800 p-6 rounded-2xl cursor-pointer hover:bg-indigo-900 transition-all border border-indigo-500/30 active:scale-95";
+                div.innerHTML = `<div class="font-black">${o.name}</div><div class="text-xs text-slate-400">${o.desc}</div>`;
+                div.onclick = () => { o.run(); document.getElementById('levelUpUI').classList.add('hidden'); gameActive = true; loop(); };
                 container.appendChild(div);
             });
             document.getElementById('levelUpUI').classList.remove('hidden');
@@ -323,65 +320,43 @@
         function loop() {
             if (!gameActive) return;
             const now = Date.now();
-            ctx.fillStyle = '#020617';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let sx = 0, sy = 0;
-            if(state.shake > 0) { sx = (Math.random()-0.5)*state.shake; sy = (Math.random()-0.5)*state.shake; state.shake *= 0.9; }
+            // Wave progression
+            if (!bossActive) {
+                waveProgress += 0.05;
+                if (waveProgress > 100) {
+                    if (wave % 5 === 0) spawnBoss();
+                    else { wave++; waveProgress = 0; }
+                }
+                if (Math.random() < 0.02 + (wave * 0.005)) spawnEnemy();
+            }
 
-            ctx.save();
-            ctx.translate(sx, sy);
+            // Screen Shake
+            if (state.shake > 0) { ctx.save(); ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.9; }
 
+            // Stars
+            state.stars.forEach(s => { s.y += s.s + (wave * 0.1); if(s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff22'; ctx.fillRect(s.x, s.y, 2, 2); });
+
+            // Player movement
             state.player.x += (state.player.tx - state.player.x) * 0.15;
             state.player.y += (state.player.ty - state.player.y) * 0.15;
 
-            state.stars.forEach(s => {
-                s.y += s.s + state.difficulty;
-                if(s.y > canvas.height) s.y = 0;
-                ctx.fillStyle = '#ffffff33';
-                ctx.fillRect(s.x, s.y, 2, 2);
-            });
-
-            const weapon = WEAPONS[selectedWeapon];
-            if (now - state.lastWeaponShot > (weapon.rate / upgrades.playerFireRate)) {
+            // Player Shooting
+            const wp = WEAPONS[selectedWeapon];
+            if (now - state.lastShot > (wp.rate / upgrades.playerFireRate)) {
                 sounds[selectedWeapon]();
-                if(selectedWeapon === 'VULCAN') {
-                    state.bullets.push({ 
-                        x: state.player.x, y: state.player.y-20, 
-                        vx: (Math.random()-0.5)*3, 
-                        vy: -weapon.bulletSpeed * upgrades.pathUpgrades.VULCAN, 
-                        c: weapon.color, d: upgrades.playerDmg 
-                    });
-                } else if(selectedWeapon === 'STRIKER') {
-                    state.bullets.push({ 
-                        x: state.player.x, y: state.player.y-20, 
-                        vx: 0, vy: -weapon.bulletSpeed, 
-                        c: weapon.color, d: upgrades.playerDmg*1.5, 
-                        seeking: true, seekStr: upgrades.pathUpgrades.STRIKER 
-                    });
-                } else if(selectedWeapon === 'ION') {
-                    state.bullets.push({ 
-                        x: state.player.x, y: state.player.y-40, 
-                        vx: 0, vy: -weapon.bulletSpeed, 
-                        c: weapon.color, d: upgrades.playerDmg*3, 
-                        laser: true, width: 16 * upgrades.pathUpgrades.ION 
-                    });
-                    state.shake = 8;
-                } else if(selectedWeapon === 'TITAN') {
-                    const count = 5 + upgrades.pathUpgrades.TITAN;
-                    for(let i=0; i<count; i++) {
-                        const angle = (i / (count-1)) * Math.PI - Math.PI;
-                        state.bullets.push({ 
-                            x: state.player.x, y: state.player.y-20, 
-                            vx: Math.cos(angle) * weapon.bulletSpeed, 
-                            vy: Math.sin(angle) * weapon.bulletSpeed, 
-                            c: weapon.color, d: upgrades.playerDmg*0.8 
-                        });
-                    }
+                const d = upgrades.playerDmg;
+                if (selectedWeapon === 'VULCAN') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (Math.random()-0.5)*2, vy: -wp.bulletSpeed, c: wp.color, d });
+                if (selectedWeapon === 'STRIKER') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*1.5, seeking: true });
+                if (selectedWeapon === 'ION') state.bullets.push({ x: state.player.x, y: state.player.y-40, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*3, laser: true });
+                if (selectedWeapon === 'TITAN') {
+                    for(let i=0; i<5; i++) state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (i-2)*4, vy: -wp.bulletSpeed, c: wp.color, d: d*0.7 });
                 }
-                state.lastWeaponShot = now;
+                state.lastShot = now;
             }
 
+            // Wingmen Shooting
             upgrades.wingmen.forEach(wm => {
                 if (now - (wm.lastShot || 0) > 500) {
                     state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -18, c: '#34d399', d: upgrades.playerDmg });
@@ -389,127 +364,158 @@
                 }
             });
 
-            if (Math.random() < 0.03 + (state.difficulty * 0.01)) {
-                state.asteroids.push({ x: Math.random()*canvas.width, y: -50, r: 15+Math.random()*30, hp: 1+Math.floor(state.difficulty*2), s: 2+Math.random()*3 });
+            // Boss Logic & Shooting back
+            if (state.boss) {
+                const b = state.boss;
+                b.y += (b.ty - b.y) * 0.02;
+                b.x += Math.sin(now * 0.002) * 3;
+                
+                // Pattern 1: Spiral Barrage
+                if (now - b.lastShot > 150) {
+                    b.angleOffset += 0.2;
+                    for(let i=0; i<3; i++) {
+                        const angle = (i/3) * Math.PI * 2 + b.angleOffset;
+                        state.particles.push({ 
+                            x: b.x, y: b.y, 
+                            vx: Math.cos(angle)*5, 
+                            vy: Math.sin(angle)*5, 
+                            r: 6, enemy: true, c: '#f87171' 
+                        });
+                    }
+                    b.lastShot = now;
+                    sounds.BOSS_SHOT();
+                }
+
+                // Pattern 2: Target-locked burst
+                if (now - b.lastAimedShot > 2000) {
+                    const angleToPlayer = Math.atan2(state.player.y - b.y, state.player.x - b.x);
+                    for(let i=-1; i<=1; i++) {
+                        const a = angleToPlayer + (i * 0.2);
+                        state.particles.push({
+                            x: b.x, y: b.y,
+                            vx: Math.cos(a) * 8,
+                            vy: Math.sin(a) * 8,
+                            r: 10, enemy: true, c: '#ef4444'
+                        });
+                    }
+                    b.lastAimedShot = now;
+                    state.shake = 10;
+                }
+
+                // Draw Boss
+                ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
+                ctx.fillStyle = '#0f172a'; ctx.fill();
+                
+                // Glowing core
+                const pulse = Math.sin(now * 0.01) * 10;
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 30 + pulse, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffffffaa'; ctx.beginPath(); ctx.arc(b.x, b.y, (b.r - 30 + pulse)/2, 0, Math.PI*2); ctx.fill();
+
+                if (b.hp <= 0) {
+                    money += 5000 + (wave * 500); xp += 3000; wave++; waveProgress = 0; bossActive = false; state.boss = null;
+                    document.getElementById('bossBarContainer').style.display = 'none';
+                    state.shake = 60; sounds.EXPLODE(); updateHUD();
+                }
             }
 
+            // Entities update
             state.bullets.forEach(b => {
                 if(b.seeking && state.asteroids.length > 0) {
                     const target = state.asteroids[0];
                     const angle = Math.atan2(target.y - b.y, target.x - b.x);
-                    b.vx += Math.cos(angle) * (b.seekStr || 1);
-                    b.vy += Math.sin(angle) * (b.seekStr || 1);
+                    b.vx += Math.cos(angle); b.vy += Math.sin(angle);
                 }
                 b.x += b.vx; b.y += b.vy;
             });
-            state.asteroids.forEach(a => { a.y += a.s; });
 
-            state.asteroids.forEach((ast, i) => {
-                const dist = Math.hypot(state.player.x - ast.x, state.player.y - ast.y);
-                if (dist < state.player.r + ast.r) {
-                    if (state.player.shield) { 
-                        state.player.shield = false; 
-                        state.asteroids.splice(i, 1); 
-                        state.shake = 20; 
-                        sounds.EXPLODE();
-                    } else { 
-                        gameActive = false; 
-                        sounds.EXPLODE();
-                        document.getElementById('menu').classList.remove('hidden'); 
-                    }
+            state.asteroids.forEach(a => a.y += a.s);
+            state.particles.forEach(p => { p.x += p.vx; p.y += p.vy; });
+
+            // Collisions
+            state.asteroids.forEach((a, ai) => {
+                const dist = Math.hypot(state.player.x - a.x, state.player.y - a.y);
+                if (dist < state.player.r + a.r) {
+                    if (state.player.shield) { state.player.shield = false; state.asteroids.splice(ai, 1); state.shake = 20; }
+                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
                 }
                 state.bullets.forEach((b, bi) => {
-                    const hitDist = Math.hypot(b.x - ast.x, b.y - ast.y);
-                    if (hitDist < ast.r + (b.laser ? (b.width || 16) : 8)) {
-                        ast.hp -= b.d; if(!b.laser) state.bullets.splice(bi, 1);
-                        if (ast.hp <= 0) {
-                            money += 150; score += 250; state.difficulty += 0.01;
-                            state.asteroids.splice(i, 1);
-                            updateHUD();
-                            sounds.EXPLODE();
-                            if(score >= nextLevelScore) { nextLevelScore += 3000; level++; handleLevelUp(); }
+                    if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
+                        a.hp -= b.d; if(!b.laser) state.bullets.splice(bi, 1);
+                        if (a.hp <= 0) {
+                            money += a.reward; xp += a.xp; state.asteroids.splice(ai, 1);
+                            sounds.EXPLODE(); updateHUD();
+                            if(xp >= nextLevelXp) { level++; xp = 0; nextLevelXp *= 1.5; handleLevelUp(); }
                         }
                     }
                 });
             });
 
-            state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200 && b.x > -200 && b.x < canvas.width + 200);
-            state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
+            if (state.boss) {
+                state.bullets.forEach((b, bi) => {
+                    if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.r) {
+                        state.boss.hp -= b.d; if(!b.laser) state.bullets.splice(bi, 1);
+                        updateHUD();
+                    }
+                });
+            }
 
-            state.bullets.forEach(b => { 
-                ctx.fillStyle = b.c;
-                if(b.laser) {
-                    const w = b.width || 16;
-                    ctx.fillRect(b.x - w/2, b.y, w, 200);
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(b.x - w/4, b.y, w/2, 200);
-                } else {
-                    ctx.beginPath();
-                    ctx.arc(b.x, b.y, b.seeking ? 7 : 4, 0, Math.PI*2);
-                    ctx.fill();
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
+            // Player hit by enemy particles
+            state.particles.forEach((p, pi) => {
+                if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
+                    if (state.player.shield) { state.player.shield = false; state.particles.splice(pi, 1); state.shake = 15; }
+                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
                 }
             });
 
-            state.asteroids.forEach(a => { 
-                ctx.strokeStyle = '#94a3b8'; 
-                ctx.lineWidth = 3; 
-                ctx.beginPath(); 
-                ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); 
-                ctx.stroke(); 
-                ctx.fillStyle = '#1e293b';
-                ctx.fill();
+            // Cleanup offscreen
+            state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200);
+            state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
+            state.particles = state.particles.filter(p => p.y < canvas.height + 200 && p.y > -200 && p.x > -100 && p.x < canvas.width + 100);
+
+            // Drawing
+            state.bullets.forEach(b => { 
+                ctx.fillStyle = b.c; 
+                if(b.laser) ctx.fillRect(b.x-8, b.y, 16, 200);
+                else { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill(); }
             });
-            
-            upgrades.wingmen.forEach(wm => {
-                ctx.fillStyle = '#34d399';
-                ctx.beginPath();
-                ctx.moveTo(state.player.x + wm.ox, state.player.y + wm.oy - 10);
-                ctx.lineTo(state.player.x + wm.ox + 8, state.player.y + wm.oy + 8);
-                ctx.lineTo(state.player.x + wm.ox - 8, state.player.y + wm.oy + 8);
-                ctx.fill();
+
+            state.asteroids.forEach(a => {
+                ctx.strokeStyle = a.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.stroke();
+                ctx.fillStyle = '#1e293b'; ctx.fill();
+            });
+
+            state.particles.forEach(p => { 
+                ctx.fillStyle = p.c; 
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r || 2, 0, Math.PI*2); ctx.fill(); 
+                if(p.enemy) { ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke(); }
             });
 
             if (state.player.shield) { 
-                ctx.strokeStyle = '#60a5fa'; 
-                ctx.lineWidth = 2;
-                ctx.beginPath(); 
-                ctx.arc(state.player.x, state.player.y, state.player.r+15, 0, Math.PI*2); 
-                ctx.stroke(); 
+                ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3; 
+                ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 35, 0, Math.PI*2); ctx.stroke(); 
+                ctx.fillStyle = '#60a5fa22'; ctx.fill();
             }
+            
+            // Draw Player Ship
+            ctx.fillStyle = '#6366f1'; 
+            ctx.beginPath(); ctx.moveTo(state.player.x, state.player.y-25); ctx.lineTo(state.player.x+20, state.player.y+15); ctx.lineTo(state.player.x-20, state.player.y+15); ctx.fill();
+            ctx.fillStyle = '#a5b4fc'; ctx.beginPath(); ctx.moveTo(state.player.x, state.player.y-25); ctx.lineTo(state.player.x+10, state.player.y+5); ctx.lineTo(state.player.x-10, state.player.y+5); ctx.fill();
 
-            ctx.fillStyle = '#6366f1';
-            ctx.beginPath(); 
-            ctx.moveTo(state.player.x, state.player.y-25); 
-            ctx.lineTo(state.player.x+20, state.player.y+15); 
-            ctx.lineTo(state.player.x-20, state.player.y+15); 
-            ctx.fill();
-            ctx.fillStyle = '#818cf8';
-            ctx.fillRect(state.player.x-5, state.player.y, 10, 10);
-
-            ctx.restore();
-            if(gameActive) requestAnimationFrame(loop);
+            if (state.shake > 0) ctx.restore();
+            requestAnimationFrame(loop);
         }
 
         function handleInput(e) {
             const rect = canvas.getBoundingClientRect();
             const cx = e.touches ? e.touches[0].clientX : e.clientX;
             const cy = e.touches ? e.touches[0].clientY : e.clientY;
-            state.player.tx = cx - rect.left;
-            state.player.ty = cy - rect.top;
+            state.player.tx = cx - rect.left; state.player.ty = cy - rect.top;
         }
 
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
         window.addEventListener('mousemove', handleInput);
-        window.addEventListener('mousedown', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); });
-        window.addEventListener('touchstart', (e) => { 
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            handleInput(e);
-        }, {passive: true});
+        window.addEventListener('touchstart', handleInput);
         window.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
-        
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
     </script>
