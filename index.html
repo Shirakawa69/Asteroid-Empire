@@ -15,9 +15,6 @@
         #bossBarContainer { display: none; }
         #warningOverlay { display: none; pointer-events: none; }
         input[type=range] { accent-color: #6366f1; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1e1b4b; }
-        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 3px; }
     </style>
 </head>
 <body class="no-select text-white">
@@ -25,17 +22,14 @@
     <canvas id="gameCanvas"></canvas>
 
     <!-- Warning Overlay -->
-    <div id="warningOverlay" class="absolute inset-0 flex items-center justify-center bg-red-900/20 z-40 animate-pulse hidden">
-        <div class="text-center">
-            <h2 id="bossNameText" class="text-6xl font-black text-red-500 italic tracking-tighter uppercase drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">BOSS APPROACHING</h2>
-            <p id="bossAlertSubtitle" class="text-red-400 font-bold tracking-[0.5em] text-sm mt-2">THREAT LEVEL: EXTREME</p>
-        </div>
+    <div id="warningOverlay" class="absolute inset-0 flex items-center justify-center bg-red-900/20 z-40 animate-pulse">
+        <h2 class="text-6xl font-black text-red-500 italic tracking-tighter">BOSS APPROACHING</h2>
     </div>
 
     <!-- HUD -->
-    <div id="hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none flex flex-col items-center gap-2 z-30">
-        <div id="bossBarContainer" class="w-full max-w-xl mb-2 hidden">
-            <div id="bossSubtitle" class="text-center text-red-500 font-black text-xs uppercase tracking-widest mb-1">...</div>
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none flex flex-col items-center gap-2">
+        <div id="bossBarContainer" class="w-full max-w-xl mb-2">
+            <div class="text-center text-red-500 font-black text-xs uppercase tracking-widest mb-1">GOLIATH CLASS THREAT</div>
             <div class="w-full bg-slate-900/80 rounded-full h-4 border-2 border-red-900 overflow-hidden">
                 <div id="bossBar" class="h-full bg-red-600 transition-all duration-100" style="width: 100%"></div>
             </div>
@@ -51,12 +45,13 @@
 
     <!-- Main Menu -->
     <div id="menu" class="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50">
-        <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-indigo-500/50 w-full max-w-2xl text-center shadow-2xl relative">
+        <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-indigo-500/50 w-full max-w-2xl text-center shadow-2xl">
             <div class="flex justify-between items-start mb-4">
-                <button onclick="window.showLeaderboard()" class="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl border border-white/10">🏆</button>
+                <div class="w-10"></div>
                 <h1 class="text-7xl font-black italic tracking-tighter bg-gradient-to-b from-white to-indigo-400 bg-clip-text text-transparent">STORM</h1>
-                <button onclick="window.toggleSettings()" class="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl border border-white/10">⚙️</button>
+                <button onclick="window.toggleSettings()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">⚙️</button>
             </div>
+            <p class="text-indigo-400 mb-8 font-medium italic">WAVE DEFENSE SYSTEM ACTIVE 🔫</p>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div onclick="window.selectWeapon('VULCAN')" id="card-VULCAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
@@ -77,59 +72,50 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3">
-                <button id="startBtn" onclick="window.startGame(false)" disabled class="w-full py-5 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all">PICK A WEAPON</button>
-                <button id="resumeWaveBtn" onclick="window.startGame(true)" class="hidden w-full py-4 font-black text-lg rounded-xl bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-900 transition-all">SKIP TO WAVE 1</button>
-                <button onclick="window.showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-white/5">OPEN ARMORY</button>
-            </div>
+            <button id="startBtn" onclick="window.startGame()" disabled class="w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all">PICK A WEAPON</button>
+            <button onclick="window.showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all">OPEN ARMORY</button>
         </div>
     </div>
 
-    <!-- Leaderboard UI -->
-    <div id="leaderboardUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/95 z-[120]">
-        <div class="bg-slate-950 p-8 rounded-[2rem] border-2 border-indigo-500/20 w-full max-w-md shadow-2xl flex flex-col max-h-[80vh]">
-            <h2 class="text-4xl font-black text-indigo-400 italic mb-6 text-center">GLOBAL TOP</h2>
-            <div id="leaderboardList" class="flex-1 overflow-y-auto space-y-2 pr-2"></div>
-            <button onclick="document.getElementById('leaderboardUI').classList.add('hidden')" class="mt-6 w-full py-4 rounded-2xl bg-slate-800 font-bold hover:bg-slate-700 border border-white/10">CLOSE</button>
-        </div>
-    </div>
-
-    <!-- Game Over / Name Entry -->
-    <div id="gameOverUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 backdrop-blur-xl z-[100]">
-        <div class="bg-slate-900 p-10 rounded-[2.5rem] border-2 border-red-500/50 w-full max-w-md text-center shadow-2xl">
-            <h2 class="text-5xl font-black text-red-500 mb-2 italic">HULL BREACH</h2>
-            <p class="text-slate-400 mb-6 font-bold tracking-widest">MISSION FAILED</p>
-            
-            <div class="bg-slate-950 p-6 rounded-2xl border border-white/10 mb-6">
-                <div class="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">Waves Cleared</div>
-                <div id="finalWaveDisplay" class="text-4xl font-mono font-black text-white">0</div>
+    <!-- Pause Menu -->
+    <div id="pauseUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm z-[100]">
+        <div class="bg-slate-900 p-10 rounded-[2rem] border-2 border-white/10 w-[300px] text-center shadow-2xl">
+            <h2 class="text-4xl font-black mb-8 italic text-indigo-400">PAUSED</h2>
+            <div class="space-y-4">
+                <button onclick="window.resumeGame()" class="w-full py-4 rounded-xl bg-indigo-600 font-black text-xl hover:scale-105 transition-all">RESUME</button>
+                <button onclick="window.toggleSettings()" class="w-full py-3 rounded-xl bg-slate-800 font-bold hover:bg-slate-700 transition-all">SETTINGS</button>
+                <button onclick="window.quitToMenu()" class="w-full py-3 rounded-xl bg-red-900/50 text-red-400 font-bold border border-red-900/50 hover:bg-red-900 transition-all">QUIT</button>
             </div>
-
-            <input type="text" id="nameInput" placeholder="ENTER PILOT NAME" maxlength="12" class="w-full bg-slate-800 border-2 border-slate-700 rounded-xl px-4 py-4 text-center font-bold text-xl text-white mb-4 focus:border-indigo-500 focus:outline-none uppercase tracking-widest placeholder-slate-600 transition-colors">
-
-            <button onclick="window.submitScore()" class="w-full py-4 rounded-xl bg-indigo-600 font-black text-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 mb-3">SAVE RECORD</button>
-            <button onclick="window.returnToMenu()" class="w-full py-3 text-slate-500 font-bold hover:text-white transition-colors">RETURN TO BASE</button>
+            <p class="mt-6 text-slate-500 text-xs font-bold uppercase tracking-widest">Press ESC to Resume</p>
         </div>
     </div>
 
     <!-- Settings Menu -->
-    <div id="settingsUI" class="hidden absolute inset-0 bg-black/90 z-[110] flex items-center justify-center">
-        <div class="bg-slate-900 p-8 rounded-3xl w-80 text-center border border-white/10">
+    <div id="settingsUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[110]">
+        <div class="bg-slate-900 p-8 rounded-3xl border border-white/10 w-[350px] text-center">
             <h2 class="text-2xl font-black mb-6">SETTINGS</h2>
-            <input type="range" min="0" max="100" value="50" class="w-full h-2 bg-slate-700 rounded-lg mb-8" oninput="window.updateVolume(this.value)">
-            <button onclick="window.toggleSettings()" class="w-full py-3 bg-indigo-600 rounded-xl font-bold">DONE</button>
+            <div class="space-y-6">
+                <div>
+                    <div class="flex justify-between text-xs font-bold mb-2 uppercase text-slate-400">
+                        <span>Master Volume</span>
+                        <span id="volVal">50%</span>
+                    </div>
+                    <input type="range" id="volSlider" min="0" max="100" value="50" oninput="window.updateVolume(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <button onclick="window.toggleSettings()" class="mt-8 w-full py-3 rounded-xl bg-indigo-600 font-bold">DONE</button>
         </div>
     </div>
 
     <!-- Shop (Armory) -->
-    <div id="shopUI" class="hidden absolute inset-0 bg-black/90 z-[60] flex items-center justify-center">
+    <div id="shopUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[60]">
         <div class="bg-slate-950 p-8 rounded-[2rem] border-2 border-indigo-500/20 w-full max-w-md shadow-2xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-3xl font-black text-indigo-400 italic tracking-widest">ARMORY</h2>
                 <div class="bg-yellow-400/10 text-yellow-400 px-4 py-1 rounded-full font-black border border-yellow-400/20" id="shopMoneyDisplay">$0</div>
             </div>
             <div class="space-y-3">
-                <div class="bg-slate-900/50 p-4 rounded-2xl flex justify-between items-center border border-white/5 hover:border-emerald-500/40 transition-colors">
+                <div class="bg-slate-900/50 p-4 rounded-2xl flex justify-between items-center border border-white/5 hover:border-indigo-500/40 transition-colors">
                     <div>
                         <div class="font-bold text-emerald-400 flex items-center gap-2">Wingman Drone <span class="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300">BOT</span></div>
                         <div id="wingmanCost" class="text-sm font-black text-slate-400">$5,000</div>
@@ -155,34 +141,46 @@
         </div>
     </div>
 
-    <!-- Evolution UI -->
-    <div id="levelUpUI" class="hidden absolute inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-6 text-center">
-        <h2 class="text-6xl font-black text-yellow-400 mb-8 italic animate-pulse">EVOLUTION</h2>
+    <!-- Evolution (Level Up) -->
+    <div id="levelUpUI" class="absolute inset-0 hidden flex flex-col items-center justify-center bg-black/95 z-50 p-6 text-center">
+        <h2 class="text-6xl font-black text-yellow-400 mb-2 italic animate-pulse">EVOLUTION</h2>
+        <p class="text-indigo-300 mb-8 font-bold">SELECT A PATH UPGRADE</p>
         <div id="optionsContainer" class="flex flex-col gap-4 w-full max-w-md"></div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Constants
+        // Global State
+        let db, auth, user, gameActive = false, isPaused = false, money = 0;
+        
+        // Permanent Armory State (Saved)
+        let armory = {
+            playerFireRate: 1,
+            playerDmg: 1,
+            wingmenCount: 0
+        };
+
+        // Current Run Evolution State (Resets)
+        let runStats = {
+            xp: 0, nextLevelXp: 1000, level: 1,
+            wave: 1, waveProgress: 0, bossActive: false,
+            piercing: false, cluster: false, chain: false, mega: false,
+            shieldActive: false
+        };
+
+        let selectedWeapon = null, masterVol = 0.5;
+        
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'storm-v2';
-
-        // State
-        let db, auth, user, gameActive = false, isPaused = false, money = 0;
-        let armory = { playerFireRate: 1, playerDmg: 1, wingmenCount: 0, highestWave: 1, playerName: "" };
-        let runStats = { xp: 0, nextLevelXp: 1000, level: 1, wave: 1, waveProgress: 0, bossActive: false, piercing: false, cluster: false, chain: false, mega: false, shieldActive: false };
-        let selectedWeapon = null, masterVol = 0.5;
-        let audioCtx;
-
         const state = { 
             shake: 0, lastShot: 0, stars: [], bullets: [], 
             asteroids: [], particles: [], 
             player: { x: 0, y: 0, tx: 0, ty: 0, r: 18 }, 
-            boss: null, runWingmen: [] 
+            boss: null,
+            runWingmen: [] // Logic for positioning wingmen during run
         };
 
         const WEAPONS = {
@@ -192,49 +190,9 @@
             TITAN: { rate: 600, color: '#fbbf24', bulletSpeed: 14 }
         };
 
-        const BOSS_VARIANTS = [
-            { 
-                name: "THE WEAVER", subtitle: "WEB TACTICIAN", color: "#a855f7", 
-                update: (b, now, wave) => {
-                    b.y += (b.ty - b.y) * 0.02; b.x += Math.cos(now * 0.001) * 3;
-                    if (now - b.lastShot > Math.max(200, 500 - wave*10)) {
-                        for(let i=0; i<8; i++) {
-                            const a = (i/8)*Math.PI*2 + now*0.001;
-                            state.particles.push({x:b.x, y:b.y, vx:Math.cos(a)*4, vy:Math.sin(a)*4, r:6, enemy:true, c:b.color});
-                        }
-                        b.lastShot = now;
-                    }
-                }
-            },
-            { 
-                name: "ORBITAL PRISM", subtitle: "BEAM ANOMALY", color: "#22d3ee", 
-                update: (b, now, wave) => {
-                    b.y += (b.ty - b.y) * 0.02;
-                    if (now - b.lastShot > 1000) {
-                        state.particles.push({x:b.x, y:b.y, vx:(state.player.x-b.x)/30, vy:(state.player.y-b.y)/30, r:15, enemy:true, c:b.color});
-                        b.lastShot = now;
-                    }
-                }
-            },
-            { 
-                name: "NOVA TITAN", subtitle: "SIEGE BREAKER", color: "#f43f5e", 
-                update: (b, now, wave) => {
-                    b.y += (b.ty - b.y) * 0.02;
-                    if (now - b.lastShot > 600) {
-                        for(let i=-1; i<=1; i++) state.particles.push({x:b.x+(i*40), y:b.y+40, vx:i, vy:7, r:12, enemy:true, c:b.color});
-                        b.lastShot = now;
-                    }
-                }
-            }
-        ];
-
-        // --- AUDIO ---
-        function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSfx(f, t, d, v=0.05) {
-            if(!audioCtx || audioCtx.state === 'suspended' || isPaused) return;
+            if(audioCtx.state === 'suspended' || isPaused) return;
             const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
             o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
             o.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + d);
@@ -252,17 +210,19 @@
             BOSS_SHOT: () => playSfx(120, 'square', 0.2, 0.08)
         };
 
-        // --- FIREBASE ---
-        if (typeof __firebase_config !== 'undefined') {
+        // --- FIREBASE SYNC ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             try {
-                const config = JSON.parse(__firebase_config);
-                const app = initializeApp(config);
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                
+
                 const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                    else await signInAnonymously(auth);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else { await signInAnonymously(auth); }
                 };
                 initAuth();
 
@@ -272,357 +232,24 @@
                         const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
                         onSnapshot(savePath, (snap) => {
                             if (snap.exists()) {
-                                const d = snap.data();
-                                money = d.money || 0;
-                                if(d.armory) armory = d.armory;
-                                if(document.getElementById('nameInput')) document.getElementById('nameInput').value = armory.playerName || "";
-                                updateHUD(); updateShopUI(); checkResume();
+                                const data = snap.data();
+                                money = data.money || 0;
+                                if(data.armory) armory = data.armory;
+                                updateHUD(); updateShopUI();
                             }
-                        });
-                        
-                        const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
-                        onSnapshot(lbRef, (snap) => {
-                            const scores = [];
-                            snap.forEach(d => scores.push(d.data()));
-                            scores.sort((a,b) => b.wave - a.wave);
-                            const list = document.getElementById('leaderboardList');
-                            if(list) list.innerHTML = scores.slice(0, 20).map((s,i) => `
-                                <div class="flex justify-between p-3 bg-slate-900/50 rounded-xl mb-2 border border-white/5">
-                                    <span class="text-indigo-400 font-bold">#${i+1} ${s.name}</span>
-                                    <span class="text-yellow-400 font-mono">W${s.wave}</span>
-                                </div>
-                            `).join('');
                         });
                     }
                 });
-            } catch(e) { console.warn("Firebase Error", e); }
+            } catch(e) { console.error("Firebase fail", e); }
         }
 
-        async function save(dead = false) {
-            if (!user) return;
+        async function saveGlobalState() {
+            if (!user || !db) return;
             const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
             await setDoc(savePath, { money, armory }, { merge: true });
-            if (dead) {
-                const nameEl = document.getElementById('nameInput');
-                const nick = nameEl ? (nameEl.value.trim() || "PILOT") : "PILOT";
-                armory.playerName = nick;
-                const lbPath = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', user.uid);
-                await setDoc(lbPath, { uid: user.uid, name: nick, wave: armory.highestWave, ts: Date.now() });
-            }
         }
 
-        // --- GAME LOGIC ---
-        function checkResume() {
-            const btn = document.getElementById('resumeWaveBtn');
-            if (btn && armory.highestWave > 1) {
-                btn.classList.remove('hidden');
-                btn.innerText = `SKIP TO WAVE ${armory.highestWave} (BONUS)`;
-            }
-        }
-
-        window.selectWeapon = (id) => {
-            initAudio();
-            selectedWeapon = id;
-            document.querySelectorAll('.weapon-card').forEach(c => c.classList.remove('selected'));
-            document.getElementById('card-' + id).classList.add('selected');
-            const btn = document.getElementById('startBtn');
-            btn.disabled = false; btn.classList.replace('bg-slate-700', 'bg-indigo-600');
-            btn.innerText = "ENGAGE";
-            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        };
-
-        window.startGame = (skip) => {
-            if(!selectedWeapon) return;
-            gameActive = true;
-            let startW = skip ? armory.highestWave : 1;
-            runStats = { xp: 0, nextLevelXp: 1000, level: 1, wave: startW, waveProgress: 0, bossActive: false, piercing: false, cluster: false, chain: false, mega: false, shieldActive: false };
-            
-            if (skip && startW > 1) {
-                const levels = Math.floor(startW / 2);
-                money += levels * 800;
-                armory.playerDmg += levels; 
-                armory.playerFireRate += levels * 0.05;
-            }
-
-            state.bullets = []; state.asteroids = []; state.particles = []; state.boss = null;
-            state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
-            state.runWingmen = Array.from({length: armory.wingmenCount}, (_, i) => ({ ox: (i%2?1:-1)*(40+Math.floor(i/2)*20), oy: 20, lastShot: 0 }));
-            
-            document.getElementById('menu').classList.add('hidden');
-            document.getElementById('gameOverUI').classList.add('hidden');
-            document.getElementById('bossBarContainer').style.display = 'none';
-            initStars(); loop();
-        };
-
-        window.showShop = () => {
-            initAudio();
-            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            updateShopUI();
-            document.getElementById('shopUI').classList.remove('hidden');
-        };
-        window.closeShop = () => document.getElementById('shopUI').classList.add('hidden');
-
-        window.buyItem = (type) => {
-            let cost = 0;
-            if (type === 'wingman') {
-                cost = 5000 * (armory.wingmenCount + 1);
-                if (money >= cost) { armory.wingmenCount++; money -= cost; }
-            } else if (type === 'dmg') {
-                cost = 2500 * armory.playerDmg;
-                if (money >= cost) { armory.playerDmg++; money -= cost; }
-            } else if (type === 'rate') {
-                cost = Math.floor(3000 * armory.playerFireRate);
-                if (money >= cost) { armory.playerFireRate += 0.15; money -= cost; }
-            }
-            save(); updateShopUI(); updateHUD();
-        };
-
-        window.toggleSettings = () => document.getElementById('settingsUI').classList.toggle('hidden');
-        window.updateVolume = (v) => {
-            masterVol = v/100;
-        };
-
-        function handleLevelUp() {
-            sounds.LEVEL();
-            isPaused = true;
-            const container = document.getElementById('optionsContainer');
-            container.innerHTML = '';
-            
-            const options = [
-                { name: "🛡️ SHIELD", desc: "Block 1 Hit", run: () => runStats.shieldActive = true },
-                { name: "⚡ FIRE RATE", desc: "Temp +30% Speed", run: () => armory.playerFireRate *= 1.3 }
-            ];
-
-            const weaponSpecials = {
-                VULCAN: { name: "🎯 Rail Shot", desc: "Bullets pierce enemies", run: () => runStats.piercing = true },
-                STRIKER: { name: "🚀 Cluster", desc: "Missiles split on impact", run: () => runStats.cluster = true },
-                ION: { name: "⚡ High Volts", desc: "Massive damage boost", run: () => armory.playerDmg *= 1.5 },
-                TITAN: { name: "💥 Megaton", desc: "Huge explosion radius", run: () => runStats.mega = true }
-            };
-            if(selectedWeapon) options.push(weaponSpecials[selectedWeapon]);
-
-            options.forEach(o => {
-                const d = document.createElement('div');
-                d.className = "bg-slate-900 border-2 border-indigo-500/20 p-4 rounded-2xl cursor-pointer hover:bg-indigo-900 transition-all active:scale-95";
-                d.innerHTML = `<div class="font-black text-white">${o.name}</div><div class="text-xs text-indigo-300 uppercase">${o.desc}</div>`;
-                d.onclick = () => { o.run(); isPaused = false; document.getElementById('levelUpUI').classList.add('hidden'); };
-                container.appendChild(d);
-            });
-            document.getElementById('levelUpUI').classList.remove('hidden');
-        }
-
-        function spawnBoss() {
-            runStats.bossActive = true;
-            const variant = BOSS_VARIANTS[Math.floor(Math.random() * BOSS_VARIANTS.length)];
-            state.boss = {
-                ...variant,
-                x: canvas.width / 2,
-                y: -150,
-                ty: 150,
-                r: 80,
-                hp: 100 * runStats.wave,
-                maxHp: 100 * runStats.wave,
-                lastShot: 0,
-                angleOffset: 0
-            };
-            
-            const overlay = document.getElementById('warningOverlay');
-            document.getElementById('bossNameText').innerText = state.boss.name;
-            overlay.classList.remove('hidden');
-            overlay.style.display = 'flex';
-            setTimeout(() => overlay.style.display = 'none', 3000);
-            
-            document.getElementById('bossBarContainer').style.display = 'block';
-            document.getElementById('bossSubtitle').innerText = state.boss.subtitle;
-        }
-
-        // Input
-        window.addEventListener('pointermove', e => {
-            if(!gameActive || isPaused) return;
-            state.player.tx = e.clientX;
-            state.player.ty = e.clientY - 40;
-        });
-
-        // Loop
-        function loop() {
-            if (!gameActive) return;
-            if (isPaused) { requestAnimationFrame(loop); return; }
-
-            const now = Date.now();
-            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Shake
-            if (state.shake > 0) { ctx.save(); ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.85; }
-
-            // Stars
-            state.stars.forEach(s => { s.y += s.s; if(s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff22'; ctx.fillRect(s.x, s.y, 1.5, 1.5); });
-
-            // --- WAVE PROGRESSION CRANKED UP ---
-            if (!runStats.bossActive) {
-                // Progression speed increased (was 0.04)
-                runStats.waveProgress += 0.09; 
-                
-                if (runStats.waveProgress > 100) {
-                    if (runStats.wave % 3 === 0) {
-                        spawnBoss();
-                    } else {
-                        runStats.wave++;
-                        runStats.waveProgress = 0;
-                        if(runStats.wave > armory.highestWave) armory.highestWave = runStats.wave;
-                    }
-                }
-                
-                // Spawn frequency increased (was 0.02 base)
-                if (Math.random() < 0.04 + (runStats.wave * 0.008)) {
-                    spawnEnemy();
-                }
-            }
-
-            // Player Move
-            state.player.x += (state.player.tx - state.player.x) * 0.2;
-            state.player.y += (state.player.ty - state.player.y) * 0.2;
-
-            // Shooting
-            const wp = WEAPONS[selectedWeapon];
-            if (now - state.lastShot > (wp.rate / armory.playerFireRate)) {
-                sounds[selectedWeapon]();
-                const d = armory.playerDmg;
-                if (selectedWeapon === 'VULCAN') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (Math.random()-0.5)*2, vy: -wp.bulletSpeed, c: wp.color, d, p: runStats.piercing });
-                if (selectedWeapon === 'STRIKER') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*1.5, seeking: true, cluster: runStats.cluster });
-                if (selectedWeapon === 'ION') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*0.3, laser: true });
-                if (selectedWeapon === 'TITAN') {
-                    for(let i=-1; i<=1; i++) state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: i*3, vy: -wp.bulletSpeed, c: wp.color, d: d*2, mega: runStats.mega });
-                }
-                state.lastShot = now;
-            }
-
-            // Wingmen
-            state.runWingmen.forEach(wm => {
-                if (now - wm.lastShot > 600) {
-                    state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -15, c: '#34d399', d: armory.playerDmg * 0.5 });
-                    wm.lastShot = now;
-                }
-            });
-
-            // Boss logic
-            if (state.boss) {
-                const b = state.boss;
-                b.update(b, now, runStats.wave);
-                
-                if (b.hp <= 0) {
-                    money += 5000; runStats.xp += 2500; runStats.wave++; runStats.waveProgress = 0; runStats.bossActive = false; state.boss = null;
-                    document.getElementById('bossBarContainer').style.display = 'none';
-                    state.shake = 50; sounds.EXPLODE(); updateHUD(); save();
-                }
-            }
-
-            // Update Entities
-            state.bullets.forEach(b => {
-                if(b.seeking && state.asteroids.length > 0) {
-                    const t = state.asteroids[0];
-                    const a = Math.atan2(t.y - b.y, t.x - b.x);
-                    b.vx += Math.cos(a) * 0.5; b.vy += Math.sin(a) * 0.5;
-                }
-                b.x += b.vx; b.y += b.vy;
-            });
-            state.asteroids.forEach(a => a.y += a.s);
-            state.particles.forEach(p => { p.x += p.vx; p.y += p.vy; });
-
-            // Collisions
-            state.asteroids.forEach((a, ai) => {
-                if (Math.hypot(state.player.x - a.x, state.player.y - a.y) < state.player.r + a.r) {
-                    if (runStats.shieldActive) { runStats.shieldActive = false; state.asteroids.splice(ai, 1); state.shake = 20; }
-                    else { gameOver(); }
-                }
-
-                state.bullets.forEach((b, bi) => {
-                    if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
-                        a.hp -= b.d;
-                        if(b.cluster) {
-                            for(let i=0; i<3; i++) state.bullets.push({x:a.x, y:a.y, vx:(Math.random()-0.5)*8, vy:(Math.random()-0.5)*8, c:b.c, d:b.d/3});
-                            b.cluster = false;
-                        }
-                        if(!b.laser && !b.p) state.bullets.splice(bi, 1);
-                        if (a.hp <= 0) {
-                            money += a.reward; runStats.xp += a.xp; state.asteroids.splice(ai, 1);
-                            sounds.EXPLODE(); updateHUD(); 
-                            if(runStats.xp >= runStats.nextLevelXp) { 
-                                runStats.level++; runStats.xp = 0; runStats.nextLevelXp *= 1.4; 
-                                handleLevelUp(); 
-                            }
-                        }
-                    }
-                });
-            });
-
-            if (state.boss) {
-                state.bullets.forEach((b, bi) => {
-                    if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.r) {
-                        state.boss.hp -= b.d; if(!b.laser && !b.p) state.bullets.splice(bi, 1);
-                    }
-                });
-            }
-
-            state.particles.forEach((p, pi) => {
-                if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
-                    if (runStats.shieldActive) { runStats.shieldActive = false; state.particles.splice(pi, 1); state.shake = 15; }
-                    else { gameOver(); }
-                }
-            });
-
-            state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200);
-            state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
-            state.particles = state.particles.filter(p => p.y < canvas.height + 100 && p.y > -100);
-
-            // Rendering
-            state.bullets.forEach(b => { 
-                ctx.fillStyle = b.c; 
-                if(b.laser) ctx.fillRect(b.x-4, 0, 8, b.y);
-                else { ctx.beginPath(); ctx.arc(b.x, b.y, b.mega ? 20 : 5, 0, Math.PI*2); ctx.fill(); }
-            });
-
-            state.asteroids.forEach(a => {
-                ctx.strokeStyle = a.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.stroke();
-                ctx.fillStyle = '#1e293b'; ctx.fill();
-            });
-
-            state.particles.forEach(p => { 
-                ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r || 2, 0, Math.PI*2); ctx.fill(); 
-            });
-
-            if (state.boss) {
-                const b = state.boss;
-                ctx.strokeStyle = b.color; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
-                ctx.fillStyle = '#0f172a'; ctx.fill();
-                ctx.fillStyle = b.color; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 20, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
-            }
-
-            if (runStats.shieldActive) { 
-                ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, state.player.r + 10, 0, Math.PI*2); ctx.stroke();
-            }
-
-            ctx.fillStyle = '#818cf8'; ctx.beginPath();
-            ctx.moveTo(state.player.x, state.player.y - 20);
-            ctx.lineTo(state.player.x - 15, state.player.y + 15);
-            ctx.lineTo(state.player.x + 15, state.player.y + 15);
-            ctx.fill();
-
-            state.runWingmen.forEach(wm => {
-                ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(state.player.x+wm.ox, state.player.y+wm.oy, 6, 0, Math.PI*2); ctx.fill();
-            });
-
-            if (state.shake > 0) ctx.restore();
-            updateHUD();
-            requestAnimationFrame(loop);
-        }
-
-        function gameOver() {
-            gameActive = false;
-            document.getElementById('finalWaveDisplay').innerText = runStats.wave;
-            document.getElementById('gameOverUI').classList.remove('hidden');
-            save();
-        }
-
+        // --- CORE LOGIC ---
         function spawnEnemy() {
             if (runStats.bossActive || isPaused) return;
             const roll = Math.random();
@@ -632,60 +259,352 @@
 
             const config = {
                 NORMAL: { r: 20, hp: 1 + (runStats.wave * 0.5), s: 2 + Math.random()*2, color: '#94a3b8', reward: 100, xp: 150 },
-                SPEEDER: { r: 12, hp: 0.5 + (runStats.wave * 0.2), s: 5 + Math.random()*3, color: '#f87171', reward: 250, xp: 300 },
-                ELITE: { r: 35, hp: 5 + (runStats.wave * 2), s: 1.5 + Math.random(), color: '#fbbf24', reward: 600, xp: 1000 }
+                SPEEDER: { r: 12, hp: 0.5 + (runStats.wave * 0.2), s: 6 + Math.random()*3, color: '#f87171', reward: 250, xp: 300 },
+                ELITE: { r: 35, hp: 5 + (runStats.wave * 2), s: 1 + Math.random()*1, color: '#fbbf24', reward: 600, xp: 1000 }
             };
 
             const c = config[type];
-            state.asteroids.push({ x: Math.random()*canvas.width, y: -50, ...c, type, maxHp: c.hp });
+            state.asteroids.push({ x: Math.random()*canvas.width, y: -50, ...c, type });
         }
 
-        function initStars() { state.stars = Array.from({length: 60}, () => ({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2+1})); }
+        function spawnBoss() {
+            runStats.bossActive = true;
+            document.getElementById('warningOverlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('warningOverlay').style.display = 'none';
+                document.getElementById('bossBarContainer').style.display = 'block';
+                state.boss = {
+                    x: canvas.width / 2, y: -200, ty: 120,
+                    r: 90, hp: 100 + (runStats.wave * 50), maxHp: 100 + (runStats.wave * 50),
+                    lastShot: 0, lastAimedShot: 0, phase: 0, angleOffset: 0
+                };
+            }, 2500);
+        }
+
         function updateHUD() {
-            const mDisp = document.getElementById('moneyDisplay');
-            if(mDisp) mDisp.innerText = `$${money.toLocaleString()}`;
-            
-            const wDisp = document.getElementById('waveDisplay');
-            if(wDisp) wDisp.innerText = `WAVE ${runStats.wave}`;
-            
-            const prog = document.getElementById('progressBar');
-            if(prog) prog.style.width = `${runStats.waveProgress}%`;
-            
+            document.getElementById('moneyDisplay').innerText = `$${money.toLocaleString()}`;
+            document.getElementById('shopMoneyDisplay').innerText = `$${money.toLocaleString()}`;
+            document.getElementById('waveDisplay').innerText = `WAVE ${runStats.wave}`;
+            document.getElementById('progressBar').style.width = `${(runStats.xp/runStats.nextLevelXp)*100}%`;
             if (state.boss) {
-                const bBar = document.getElementById('bossBar');
-                if(bBar) bBar.style.width = `${(state.boss.hp/state.boss.maxHp)*100}%`;
+                document.getElementById('bossBar').style.width = `${(state.boss.hp / state.boss.maxHp) * 100}%`;
             }
         }
+
         function updateShopUI() {
-            const smd = document.getElementById('shopMoneyDisplay');
-            if(smd) smd.innerText = `$${money.toLocaleString()}`;
-            
-            const wCost = document.getElementById('wingmanCost');
-            if(wCost) wCost.innerText = `$${(5000 * (armory.wingmenCount + 1)).toLocaleString()}`;
-            
-            const dmgLvl = document.getElementById('dmgLevelDisplay');
-            if(dmgLvl) dmgLvl.innerText = `Power Core Lv.${armory.playerDmg}`;
-            
-            const dmgCost = document.getElementById('dmgCost');
-            if(dmgCost) dmgCost.innerText = `$${(2500 * armory.playerDmg).toLocaleString()}`;
-            
-            const rateCost = document.getElementById('rateCost');
-            if(rateCost) rateCost.innerText = `$${Math.floor(3000 * armory.playerFireRate).toLocaleString()}`;
+            document.getElementById('wingmanCost').innerText = `$${(5000 * (armory.wingmenCount + 1)).toLocaleString()}`;
+            document.getElementById('dmgLevelDisplay').innerText = `Power Core Lv.${armory.playerDmg}`;
+            document.getElementById('dmgCost').innerText = `$${(2500 * armory.playerDmg).toLocaleString()}`;
+            document.getElementById('rateCost').innerText = `$${(Math.floor(3000 * armory.playerFireRate)).toLocaleString()}`;
         }
 
-        window.submitScore = () => {
-            save(true);
-            document.getElementById('gameOverUI').classList.add('hidden');
-            document.getElementById('menu').classList.remove('hidden');
+        // --- UI EXPORTS ---
+        window.toggleSettings = () => {
+            const ui = document.getElementById('settingsUI');
+            ui.classList.toggle('hidden');
         };
-        window.returnToMenu = () => {
-            document.getElementById('gameOverUI').classList.add('hidden');
-            document.getElementById('menu').classList.remove('hidden');
+
+        window.updateVolume = (val) => {
+            masterVol = val / 100;
+            document.getElementById('volVal').innerText = val + '%';
         };
-        window.showLeaderboard = () => document.getElementById('leaderboardUI').classList.remove('hidden');
+
+        window.selectWeapon = (id) => {
+            selectedWeapon = id;
+            document.querySelectorAll('.weapon-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('card-' + id).classList.add('selected');
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = false;
+            startBtn.innerText = "ENGAGE WAVE";
+            startBtn.className = "w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-indigo-600 text-white shadow-xl hover:scale-105 transition-all";
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        };
+
+        window.startGame = () => {
+            if(!selectedWeapon) return;
+            gameActive = true; isPaused = false;
+            
+            // Reset Run Stats
+            runStats = {
+                xp: 0, nextLevelXp: 1000, level: 1,
+                wave: 1, waveProgress: 0, bossActive: false,
+                piercing: false, cluster: false, chain: false, mega: false,
+                shieldActive: false
+            };
+
+            state.bullets = []; state.asteroids = []; state.particles = [];
+            state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
+            state.player.tx = state.player.x; state.player.ty = state.player.y;
+            
+            // Setup Wingmen for this run based on Armory
+            state.runWingmen = [];
+            for(let i=0; i < armory.wingmenCount; i++) {
+                const side = i % 2 === 0 ? 1 : -1;
+                const dist = 50 + (Math.floor(i/2) * 30);
+                state.runWingmen.push({ ox: dist * side, oy: 30, lastShot: 0 });
+            }
+
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('bossBarContainer').style.display = 'none';
+            initStars(); updateHUD(); updateShopUI(); loop();
+        };
+
+        window.resumeGame = () => {
+            isPaused = false;
+            document.getElementById('pauseUI').classList.add('hidden');
+        };
+
+        window.quitToMenu = () => {
+            gameActive = false;
+            isPaused = false;
+            document.getElementById('pauseUI').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('bossBarContainer').style.display = 'none';
+        };
+
+        window.showShop = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            updateShopUI();
+            document.getElementById('shopUI').classList.remove('hidden');
+        };
+        
         window.closeShop = () => document.getElementById('shopUI').classList.add('hidden');
 
+        window.buyItem = (type) => {
+            let cost = 0;
+            if (type === 'wingman') {
+                cost = 5000 * (armory.wingmenCount + 1);
+                if (money >= cost) {
+                    armory.wingmenCount++;
+                    money -= cost;
+                }
+            } else if (type === 'dmg') {
+                cost = 2500 * armory.playerDmg;
+                if (money >= cost) {
+                    armory.playerDmg++;
+                    money -= cost;
+                }
+            } else if (type === 'rate') {
+                cost = Math.floor(3000 * armory.playerFireRate);
+                if (money >= cost) {
+                    armory.playerFireRate += 0.2;
+                    money -= cost;
+                }
+            }
+            saveGlobalState(); updateHUD(); updateShopUI();
+        };
+
+        function initStars() {
+            state.stars = [];
+            for(let i=0; i<100; i++) state.stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2 + 1 });
+        }
+
+        function handleLevelUp() {
+            sounds.LEVEL(); gameActive = false;
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+            
+            const pathOptions = {
+                VULCAN: { name: "🎯 Piercing Rounds", desc: "Bullets pass through 1 enemy", run: () => runStats.piercing = true },
+                STRIKER: { name: "🚀 Cluster Missiles", desc: "Missiles split on hit", run: () => runStats.cluster = true },
+                ION: { name: "⚡ Chain Lightning", desc: "Beam arcs to nearby targets", run: () => runStats.chain = true },
+                TITAN: { name: "💥 Mega Blast", desc: "Huge explosion radius", run: () => runStats.mega = true }
+            };
+
+            const opts = [
+                pathOptions[selectedWeapon],
+                { name: "🛡️ Plasma Shield", desc: "Passive protection", run: () => runStats.shieldActive = true },
+                { name: "🔋 Battery Overload", desc: "Instant Run Speed +20%", run: () => armory.playerFireRate *= 1.2 } // Note: Temporary run buff? Logic kept simple
+            ];
+
+            opts.forEach(o => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-900/80 p-6 rounded-2xl cursor-pointer hover:bg-indigo-900 transition-all border-2 border-indigo-500/20 active:scale-95";
+                div.innerHTML = `<div class="font-black text-xl text-white mb-1">${o.name}</div><div class="text-xs text-indigo-300 font-bold uppercase">${o.desc}</div>`;
+                div.onclick = () => { o.run(); document.getElementById('levelUpUI').classList.add('hidden'); gameActive = true; loop(); };
+                container.appendChild(div);
+            });
+            document.getElementById('levelUpUI').classList.remove('hidden');
+        }
+
+        // --- GAME LOOP ---
+        function loop() {
+            if (!gameActive) return;
+            if (isPaused) {
+                requestAnimationFrame(loop);
+                return;
+            }
+
+            const now = Date.now();
+            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!runStats.bossActive) {
+                runStats.waveProgress += 0.05;
+                if (runStats.waveProgress > 100) {
+                    if (runStats.wave % 5 === 0) spawnBoss();
+                    else { runStats.wave++; runStats.waveProgress = 0; }
+                }
+                if (Math.random() < 0.02 + (runStats.wave * 0.005)) spawnEnemy();
+            }
+
+            if (state.shake > 0) { ctx.save(); ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.9; }
+
+            state.stars.forEach(s => { s.y += s.s + (runStats.wave * 0.1); if(s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff22'; ctx.fillRect(s.x, s.y, 2, 2); });
+
+            state.player.x += (state.player.tx - state.player.x) * 0.15;
+            state.player.y += (state.player.ty - state.player.y) * 0.15;
+
+            const wp = WEAPONS[selectedWeapon];
+            if (now - state.lastShot > (wp.rate / armory.playerFireRate)) {
+                sounds[selectedWeapon]();
+                const d = armory.playerDmg;
+                if (selectedWeapon === 'VULCAN') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (Math.random()-0.5)*2, vy: -wp.bulletSpeed, c: wp.color, d, p: runStats.piercing });
+                if (selectedWeapon === 'STRIKER') state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*1.5, seeking: true, cluster: runStats.cluster });
+                if (selectedWeapon === 'ION') state.bullets.push({ x: state.player.x, y: state.player.y-40, vx: 0, vy: -wp.bulletSpeed, c: wp.color, d: d*3, laser: true, chain: runStats.chain });
+                if (selectedWeapon === 'TITAN') {
+                    for(let i=0; i<5; i++) state.bullets.push({ x: state.player.x, y: state.player.y-20, vx: (i-2)*4, vy: -wp.bulletSpeed, c: wp.color, d: d*0.7, mega: runStats.mega });
+                }
+                state.lastShot = now;
+            }
+
+            state.runWingmen.forEach(wm => {
+                if (now - (wm.lastShot || 0) > 500) {
+                    state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -18, c: '#34d399', d: armory.playerDmg });
+                    wm.lastShot = now;
+                }
+            });
+
+            if (state.boss) {
+                const b = state.boss; b.y += (b.ty - b.y) * 0.02; b.x += Math.sin(now * 0.002) * 3;
+                if (now - b.lastShot > 150) {
+                    b.angleOffset += 0.2;
+                    for(let i=0; i<3; i++) {
+                        const angle = (i/3) * Math.PI * 2 + b.angleOffset;
+                        state.particles.push({ x: b.x, y: b.y, vx: Math.cos(angle)*5, vy: Math.sin(angle)*5, r: 6, enemy: true, c: '#f87171' });
+                    }
+                    b.lastShot = now; sounds.BOSS_SHOT();
+                }
+                if (now - b.lastAimedShot > 2000) {
+                    const angleToPlayer = Math.atan2(state.player.y - b.y, state.player.x - b.x);
+                    for(let i=-1; i<=1; i++) {
+                        const a = angleToPlayer + (i * 0.2);
+                        state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, r: 10, enemy: true, c: '#ef4444' });
+                    }
+                    b.lastAimedShot = now; state.shake = 10;
+                }
+                ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
+                ctx.fillStyle = '#0f172a'; ctx.fill();
+                const pulse = Math.sin(now * 0.01) * 10;
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 30 + pulse, 0, Math.PI*2); ctx.fill();
+                if (b.hp <= 0) {
+                    money += 5000; runStats.xp += 3000; runStats.wave++; runStats.waveProgress = 0; runStats.bossActive = false; state.boss = null;
+                    document.getElementById('bossBarContainer').style.display = 'none';
+                    state.shake = 60; sounds.EXPLODE(); updateHUD(); saveGlobalState();
+                }
+            }
+
+            state.bullets.forEach(b => {
+                if(b.seeking && state.asteroids.length > 0) {
+                    const target = state.asteroids[0];
+                    const angle = Math.atan2(target.y - b.y, target.x - b.x);
+                    b.vx += Math.cos(angle); b.vy += Math.sin(angle);
+                }
+                b.x += b.vx; b.y += b.vy;
+            });
+
+            state.asteroids.forEach(a => a.y += a.s);
+            state.particles.forEach(p => { p.x += p.vx; p.y += p.vy; });
+
+            state.asteroids.forEach((a, ai) => {
+                if (Math.hypot(state.player.x - a.x, state.player.y - a.y) < state.player.r + a.r) {
+                    if (runStats.shieldActive) { runStats.shieldActive = false; state.asteroids.splice(ai, 1); state.shake = 20; }
+                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
+                }
+                state.bullets.forEach((b, bi) => {
+                    if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
+                        a.hp -= b.d;
+                        if(b.cluster) {
+                            for(let i=0; i<3; i++) state.bullets.push({x:a.x, y:a.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, c:b.c, d:b.d/2});
+                        }
+                        if(b.mega) state.shake = 15;
+                        if (!b.laser && !b.p) state.bullets.splice(bi, 1);
+                        if (a.hp <= 0) {
+                            money += a.reward; runStats.xp += a.xp; state.asteroids.splice(ai, 1);
+                            sounds.EXPLODE(); updateHUD(); saveGlobalState();
+                            if(runStats.xp >= runStats.nextLevelXp) { runStats.level++; runStats.xp = 0; runStats.nextLevelXp *= 1.5; handleLevelUp(); }
+                        }
+                    }
+                });
+            });
+
+            if (state.boss) {
+                state.bullets.forEach((b, bi) => {
+                    if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.r) {
+                        state.boss.hp -= b.d; if(!b.laser && !b.p) state.bullets.splice(bi, 1);
+                        updateHUD();
+                    }
+                });
+            }
+
+            state.particles.forEach((p, pi) => {
+                if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
+                    if (runStats.shieldActive) { runStats.shieldActive = false; state.particles.splice(pi, 1); state.shake = 15; }
+                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
+                }
+            });
+
+            state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200);
+            state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
+            state.particles = state.particles.filter(p => p.y < canvas.height + 200 && p.y > -200);
+
+            state.bullets.forEach(b => { 
+                ctx.fillStyle = b.c; 
+                if(b.laser) ctx.fillRect(b.x-8, b.y, 16, 200);
+                else { ctx.beginPath(); ctx.arc(b.x, b.y, b.mega ? 15 : 5, 0, Math.PI*2); ctx.fill(); }
+            });
+
+            state.asteroids.forEach(a => {
+                ctx.strokeStyle = a.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.stroke();
+                ctx.fillStyle = '#1e293b'; ctx.fill();
+            });
+
+            state.particles.forEach(p => { 
+                ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r || 2, 0, Math.PI*2); ctx.fill(); 
+                if(p.enemy) { ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke(); }
+            });
+
+            if (runStats.shieldActive) { 
+                ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 35, 0, Math.PI*2); ctx.stroke(); 
+            }
+            
+            ctx.fillStyle = '#6366f1'; 
+            ctx.beginPath(); ctx.moveTo(state.player.x, state.player.y-25); ctx.lineTo(state.player.x+20, state.player.y+15); ctx.lineTo(state.player.x-20, state.player.y+15); ctx.fill();
+
+            if (state.shake > 0) ctx.restore();
+            requestAnimationFrame(loop);
+        }
+
+        function handleInput(e) {
+            if (isPaused) return;
+            const rect = canvas.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            state.player.tx = cx - rect.left; state.player.ty = cy - rect.top;
+        }
+
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+        window.addEventListener('mousemove', handleInput);
+        window.addEventListener('touchstart', handleInput);
+        window.addEventListener('touchmove', (e) => { if(!isPaused) e.preventDefault(); handleInput(e); }, {passive: false});
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && gameActive && document.getElementById('levelUpUI').classList.contains('hidden')) {
+                isPaused = !isPaused;
+                if (isPaused) document.getElementById('pauseUI').classList.remove('hidden');
+                else document.getElementById('pauseUI').classList.add('hidden');
+            }
+        });
+
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     </script>
 </body>
