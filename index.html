@@ -241,37 +241,41 @@
         };
 
         // --- FIREBASE SYNC ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
-        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-            try {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+        const appId = 'asteroid-empire-storm';
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyDz63J76Y7bISc4YQPqTshVIbmN_2HMJRo",
+                authDomain: "asteroid-8487c.firebaseapp.com",
+                projectId: "asteroid-8487c",
+                storageBucket: "asteroid-8487c.firebasestorage.app",
+                messagingSenderId: "795753092726",
+                appId: "1:795753092726:web:b1ab432cd593a01f5e3157",
+                measurementId: "G-FTXZRDY0ZG"
+            };
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
 
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else { await signInAnonymously(auth); }
-                };
-                initAuth();
+            const initAuth = async () => {
+                await signInAnonymously(auth);
+            };
+            initAuth();
 
-                onAuthStateChanged(auth, u => {
-                    user = u;
-                    if (user) {
-                        const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-                        onSnapshot(savePath, (snap) => {
-                            if (snap.exists()) {
-                                const data = snap.data();
-                                money = data.money || 0;
-                                if(data.armory) armory = data.armory;
-                                updateHUD(); updateShopUI();
-                            }
-                        });
-                    }
-                });
-            } catch(e) { console.error("Firebase fail", e); }
-        }
+            onAuthStateChanged(auth, u => {
+                user = u;
+                if (user) {
+                    const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
+                    onSnapshot(savePath, (snap) => {
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            money = data.money || 0;
+                            if(data.armory) armory = data.armory;
+                            updateHUD(); updateShopUI();
+                        }
+                    });
+                }
+            });
+        } catch(e) { console.error("Firebase fail", e); }
 
         async function saveGlobalState() {
             if (!user || !db) return;
@@ -436,17 +440,27 @@
 
         window.submitScore = async () => {
             const nickname = document.getElementById('nicknameInput').value.trim() || 'Anonymous';
-            if (!user || !db) return;
-            const scoreData = { nickname, wave: runStats.wave, timestamp: Date.now() };
-            const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
-            // Assuming scores are stored as an array in a document
-            const snap = await getDoc(leaderboardPath);
-            let scores = snap.exists() ? snap.data().scores || [] : [];
-            scores.push(scoreData);
-            scores.sort((a, b) => b.wave - a.wave);
-            scores = scores.slice(0, 10); // Keep top 10
-            await setDoc(leaderboardPath, { scores });
-            returnToMenu();
+            if (!user || !db) {
+                console.error('Firebase not initialized: user or db is missing');
+                alert('Score submission failed: Firebase not configured. Please check console for details.');
+                return;
+            }
+            try {
+                const scoreData = { nickname, wave: runStats.wave, timestamp: Date.now() };
+                const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
+                // Assuming scores are stored as an array in a document
+                const snap = await getDoc(leaderboardPath);
+                let scores = snap.exists() ? snap.data().scores || [] : [];
+                scores.push(scoreData);
+                scores.sort((a, b) => b.wave - a.wave);
+                scores = scores.slice(0, 10); // Keep top 10
+                await setDoc(leaderboardPath, { scores });
+                console.log('Score submitted successfully');
+                returnToMenu();
+            } catch (error) {
+                console.error('Error submitting score:', error);
+                alert('Score submission failed. Please check console for details.');
+            }
         };
 
         window.returnToMenu = () => {
