@@ -77,8 +77,21 @@
         </div>
     </div>
 
+    <!-- Pause Menu -->
+    <div id="pauseUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm z-[100]">
+        <div class="bg-slate-900 p-10 rounded-[2rem] border-2 border-white/10 w-[300px] text-center shadow-2xl">
+            <h2 class="text-4xl font-black mb-8 italic text-indigo-400">PAUSED</h2>
+            <div class="space-y-4">
+                <button onclick="window.resumeGame()" class="w-full py-4 rounded-xl bg-indigo-600 font-black text-xl hover:scale-105 transition-all">RESUME</button>
+                <button onclick="window.toggleSettings()" class="w-full py-3 rounded-xl bg-slate-800 font-bold hover:bg-slate-700 transition-all">SETTINGS</button>
+                <button onclick="window.quitToMenu()" class="w-full py-3 rounded-xl bg-red-900/50 text-red-400 font-bold border border-red-900/50 hover:bg-red-900 transition-all">QUIT</button>
+            </div>
+            <p class="mt-6 text-slate-500 text-xs font-bold uppercase tracking-widest">Press ESC to Resume</p>
+        </div>
+    </div>
+
     <!-- Settings Menu -->
-    <div id="settingsUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[70]">
+    <div id="settingsUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[110]">
         <div class="bg-slate-900 p-8 rounded-3xl border border-white/10 w-[350px] text-center">
             <h2 class="text-2xl font-black mb-6">SETTINGS</h2>
             <div class="space-y-6">
@@ -141,10 +154,9 @@
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         // State Variables
-        let db, auth, user, gameActive = false, money = 0, xp = 0, nextLevelXp = 1000, level = 1;
+        let db, auth, user, gameActive = false, isPaused = false, money = 0, xp = 0, nextLevelXp = 1000, level = 1;
         let wave = 1, waveProgress = 0, bossActive = false, selectedWeapon = null, masterVol = 0.5;
         
-        // Resetting upgrades every run as requested
         let upgrades = { 
             playerFireRate: 1, 
             playerDmg: 1, 
@@ -173,7 +185,7 @@
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSfx(f, t, d, v=0.05) {
-            if(audioCtx.state === 'suspended') return;
+            if(audioCtx.state === 'suspended' || isPaused) return;
             const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
             o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
             o.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + d);
@@ -231,7 +243,7 @@
 
         // --- CORE LOGIC ---
         function spawnEnemy() {
-            if (bossActive) return;
+            if (bossActive || isPaused) return;
             const roll = Math.random();
             let type = "NORMAL";
             if (roll < 0.1) type = "SPEEDER";
@@ -302,8 +314,7 @@
 
         window.startGame = () => {
             if(!selectedWeapon) return;
-            // Full Reset per-run
-            gameActive = true; xp = 0; level = 1; wave = 1; waveProgress = 0; bossActive = false; state.boss = null;
+            gameActive = true; isPaused = false; xp = 0; level = 1; wave = 1; waveProgress = 0; bossActive = false; state.boss = null;
             upgrades = { playerFireRate: 1, playerDmg: 1, wingmen: [], piercing: false, cluster: false, chain: false, mega: false };
             state.bullets = []; state.asteroids = []; state.particles = [];
             state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
@@ -311,6 +322,19 @@
             document.getElementById('menu').classList.add('hidden');
             document.getElementById('bossBarContainer').style.display = 'none';
             initStars(); updateHUD(); updateShopUI(); loop();
+        };
+
+        window.resumeGame = () => {
+            isPaused = false;
+            document.getElementById('pauseUI').classList.add('hidden');
+        };
+
+        window.quitToMenu = () => {
+            gameActive = false;
+            isPaused = false;
+            document.getElementById('pauseUI').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('bossBarContainer').style.display = 'none';
         };
 
         window.showShop = () => {
@@ -357,7 +381,6 @@
             const container = document.getElementById('optionsContainer');
             container.innerHTML = '';
             
-            // Custom Path Options based on weapon
             const pathOptions = {
                 VULCAN: { name: "🎯 Piercing Rounds", desc: "Bullets pass through 1 enemy", run: () => upgrades.piercing = true },
                 STRIKER: { name: "🚀 Cluster Missiles", desc: "Missiles split on hit", run: () => upgrades.cluster = true },
@@ -384,6 +407,11 @@
         // --- GAME LOOP ---
         function loop() {
             if (!gameActive) return;
+            if (isPaused) {
+                requestAnimationFrame(loop);
+                return;
+            }
+
             const now = Date.now();
             ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -472,10 +500,10 @@
                 state.bullets.forEach((b, bi) => {
                     if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
                         a.hp -= b.d;
-                        if(b.cluster) { // Striker Path
+                        if(b.cluster) {
                             for(let i=0; i<3; i++) state.bullets.push({x:a.x, y:a.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, c:b.c, d:b.d/2});
                         }
-                        if(b.mega) state.shake = 15; // Titan Path
+                        if(b.mega) state.shake = 15;
                         if (!b.laser && !b.p) state.bullets.splice(bi, 1);
                         if (a.hp <= 0) {
                             money += a.reward; xp += a.xp; state.asteroids.splice(ai, 1);
@@ -534,6 +562,7 @@
         }
 
         function handleInput(e) {
+            if (isPaused) return;
             const rect = canvas.getBoundingClientRect();
             const cx = e.touches ? e.touches[0].clientX : e.clientX;
             const cy = e.touches ? e.touches[0].clientY : e.clientY;
@@ -543,7 +572,20 @@
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
         window.addEventListener('mousemove', handleInput);
         window.addEventListener('touchstart', handleInput);
-        window.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
+        window.addEventListener('touchmove', (e) => { if(!isPaused) e.preventDefault(); handleInput(e); }, {passive: false});
+        
+        // --- ESC PAUSE LISTENER ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && gameActive && document.getElementById('levelUpUI').classList.contains('hidden')) {
+                isPaused = !isPaused;
+                if (isPaused) {
+                    document.getElementById('pauseUI').classList.remove('hidden');
+                } else {
+                    document.getElementById('pauseUI').classList.add('hidden');
+                }
+            }
+        });
+
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     </script>
 </body>
