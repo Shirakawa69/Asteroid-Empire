@@ -36,30 +36,30 @@
             <p class="text-indigo-400 mb-8 font-medium italic">Select your Loadout, Pookie 🔫</p>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div onclick="selectWeapon('VULCAN')" id="card-VULCAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
+                <div onclick="window.selectWeapon('VULCAN')" id="card-VULCAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">🎯</span>
                     <div class="font-black text-xs mt-2 uppercase">Vulcan</div>
                     <div class="text-[10px] text-slate-400">High Speed Fire</div>
                 </div>
-                <div onclick="selectWeapon('STRIKER')" id="card-STRIKER" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
+                <div onclick="window.selectWeapon('STRIKER')" id="card-STRIKER" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">🚀</span>
                     <div class="font-black text-xs mt-2 uppercase">Striker</div>
                     <div class="text-[10px] text-slate-400">Heat-Seekers</div>
                 </div>
-                <div onclick="selectWeapon('ION')" id="card-ION" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
+                <div onclick="window.selectWeapon('ION')" id="card-ION" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">⚡</span>
                     <div class="font-black text-xs mt-2 uppercase">Ion Beam</div>
                     <div class="text-[10px] text-slate-400">Piercing Laser</div>
                 </div>
-                <div onclick="selectWeapon('TITAN')" id="card-TITAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
+                <div onclick="window.selectWeapon('TITAN')" id="card-TITAN" class="weapon-card p-4 bg-slate-800 rounded-2xl border-2 border-transparent cursor-pointer">
                     <span class="text-3xl">💥</span>
                     <div class="font-black text-xs mt-2 uppercase">Titan</div>
                     <div class="text-[10px] text-slate-400">Massive Flak</div>
                 </div>
             </div>
 
-            <button id="startBtn" onclick="startGame()" disabled class="w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all shadow-lg">PICK A WEAPON</button>
-            <button onclick="showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-white/5">OPEN ARMORY</button>
+            <button id="startBtn" onclick="window.startGame()" disabled class="w-full py-5 mb-4 font-black text-2xl rounded-2xl bg-slate-700 text-slate-400 transition-all shadow-lg">PICK A WEAPON</button>
+            <button onclick="window.showShop()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-white/5">OPEN ARMORY</button>
         </div>
     </div>
 
@@ -73,17 +73,17 @@
                         <div class="font-bold text-emerald-400">Wingman Drone</div>
                         <div id="wingmanCost" class="text-sm font-black text-yellow-400">$5,000</div>
                     </div>
-                    <button onclick="buyItem('wingman')" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">BUY</button>
+                    <button onclick="window.buyItem('wingman')" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">BUY</button>
                 </div>
                 <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-white/5">
                     <div>
                         <div id="dmgLevelDisplay" class="font-bold text-blue-400 font-black">Power Lv.1</div>
                         <div id="dmgCost" class="text-sm font-black text-yellow-400">$2,500</div>
                     </div>
-                    <button onclick="buyItem('dmg')" class="bg-blue-600 hover:bg-blue-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">UP</button>
+                    <button onclick="window.buyItem('dmg')" class="bg-blue-600 hover:bg-blue-500 px-5 py-2 rounded-lg font-bold transition-colors shadow-lg">UP</button>
                 </div>
             </div>
-            <button onclick="closeShop()" class="mt-8 w-full py-4 rounded-xl font-bold bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700">CLOSE</button>
+            <button onclick="window.closeShop()" class="mt-8 w-full py-4 rounded-xl font-bold bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700">CLOSE</button>
         </div>
     </div>
 
@@ -99,12 +99,28 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // --- GITHUB READY FIX ---
+        // Global State
         let db = null;
         let auth = null;
+        let user = null;
+        let gameActive = false;
+        let money = 0;
+        let score = 0;
+        let level = 1;
+        let nextLevelScore = 2000;
+        let selectedWeapon = null;
+        
+        let upgrades = { 
+            playerFireRate: 1, 
+            playerDmg: 1, 
+            multiShot: 1, 
+            wingmen: [],
+            pathUpgrades: { VULCAN: 1, STRIKER: 1, ION: 1, TITAN: 1 }
+        };
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
 
-        if (typeof __firebase_config !== 'undefined') {
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             const firebaseConfig = JSON.parse(__firebase_config);
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
@@ -134,8 +150,6 @@
                     });
                 }
             });
-        } else {
-            console.warn("Firebase config not found. Running in local mode (no cloud saves).");
         }
 
         async function save() {
@@ -143,11 +157,11 @@
             const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
             await setDoc(savePath, { money, upgrades }, { merge: true });
         }
-        // --- END FIX ---
 
         // Sound Engine
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSfx(freq, type, duration, vol = 0.1) {
+            if(audioCtx.state === 'suspended') return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -170,29 +184,8 @@
             LEVEL: () => playSfx(600, 'sine', 0.8, 0.2)
         };
 
-        // Game State
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        let user = null;
-        let gameActive = false;
-        let money = 0;
-        let score = 0;
-        let level = 1;
-        let nextLevelScore = 2000;
-        let selectedWeapon = null;
-        
-        let upgrades = { 
-            playerFireRate: 1, 
-            playerDmg: 1, 
-            multiShot: 1, 
-            wingmen: [],
-            pathUpgrades: {
-                VULCAN: 1,
-                STRIKER: 1,
-                ION: 1,
-                TITAN: 1
-            }
-        };
         
         const state = {
             shake: 0,
@@ -211,6 +204,7 @@
             TITAN: { rate: 600, color: '#fbbf24', bulletSpeed: 14 }
         };
 
+        // --- GLOBAL EXPORTS ---
         window.selectWeapon = (id) => {
             selectedWeapon = id;
             document.querySelectorAll('.weapon-card').forEach(card => card.classList.remove('selected'));
@@ -415,7 +409,6 @@
                         gameActive = false; 
                         sounds.EXPLODE();
                         document.getElementById('menu').classList.remove('hidden'); 
-                        save(); 
                     }
                 }
                 state.bullets.forEach((b, bi) => {
