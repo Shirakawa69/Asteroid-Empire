@@ -49,7 +49,10 @@
             <div class="flex justify-between items-start mb-4">
                 <div class="w-10"></div>
                 <h1 class="text-7xl font-black italic tracking-tighter bg-gradient-to-b from-white to-indigo-400 bg-clip-text text-transparent">STORM</h1>
-                <button onclick="window.toggleSettings()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">⚙️</button>
+                <div class="flex gap-2">
+                    <button onclick="window.showLeaderboard()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">🏆</button>
+                    <button onclick="window.toggleSettings()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">⚙️</button>
+                </div>
             </div>
             <p class="text-indigo-400 mb-8 font-medium italic">WAVE DEFENSE SYSTEM ACTIVE 🔫</p>
             
@@ -148,10 +151,37 @@
         <div id="optionsContainer" class="flex flex-col gap-4 w-full max-w-md"></div>
     </div>
 
+    <!-- Leaderboard -->
+    <div id="leaderboardUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[60]">
+        <div class="bg-slate-950 p-8 rounded-[2rem] border-2 border-indigo-500/20 w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-black text-indigo-400 italic tracking-widest">LEADERBOARD</h2>
+                <button onclick="window.closeLeaderboard()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">✕</button>
+            </div>
+            <div id="leaderboardList" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- Leaderboard entries will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="deathUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/95 z-50 p-6 text-center">
+        <div class="bg-slate-900 p-8 rounded-[2rem] border border-red-500/50 w-full max-w-md shadow-2xl">
+            <h2 class="text-6xl font-black text-red-400 mb-4 italic">GAME OVER</h2>
+            <p class="text-indigo-300 mb-6 font-bold">You reached Wave <span id="finalWave">1</span></p>
+            <div class="mb-6">
+                <label class="block text-slate-300 mb-2 font-bold">Enter your nickname:</label>
+                <input type="text" id="nicknameInput" maxlength="20" class="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="Anonymous">
+            </div>
+            <button onclick="window.submitScore()" class="w-full py-4 mb-4 font-black text-xl rounded-2xl bg-indigo-600 text-white shadow-xl hover:scale-105 transition-all">SUBMIT SCORE</button>
+            <button onclick="window.returnToMenu()" class="w-full py-3 font-bold text-slate-300 bg-slate-800 rounded-xl hover:bg-slate-700 transition-all">SKIP</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         // Global State
         let db, auth, user, gameActive = false, isPaused = false, money = 0;
@@ -399,6 +429,51 @@
             for(let i=0; i<100; i++) state.stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2 + 1 });
         }
 
+        function showDeathScreen() {
+            document.getElementById('finalWave').innerText = runStats.wave;
+            document.getElementById('deathUI').classList.remove('hidden');
+        }
+
+        window.submitScore = async () => {
+            const nickname = document.getElementById('nicknameInput').value.trim() || 'Anonymous';
+            if (!user || !db) return;
+            const scoreData = { nickname, wave: runStats.wave, timestamp: Date.now() };
+            const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
+            // Assuming scores are stored as an array in a document
+            const snap = await getDoc(leaderboardPath);
+            let scores = snap.exists() ? snap.data().scores || [] : [];
+            scores.push(scoreData);
+            scores.sort((a, b) => b.wave - a.wave);
+            scores = scores.slice(0, 10); // Keep top 10
+            await setDoc(leaderboardPath, { scores });
+            returnToMenu();
+        };
+
+        window.returnToMenu = () => {
+            document.getElementById('deathUI').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+        };
+
+        window.showLeaderboard = async () => {
+            if (!db) return;
+            const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
+            const snap = await getDoc(leaderboardPath);
+            const scores = snap.exists() ? snap.data().scores || [] : [];
+            const list = document.getElementById('leaderboardList');
+            list.innerHTML = '';
+            scores.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-slate-800 p-3 rounded-xl";
+                div.innerHTML = `<div class="font-bold text-indigo-400">#${i+1} ${s.nickname}</div><div class="font-black text-yellow-400">Wave ${s.wave}</div>`;
+                list.appendChild(div);
+            });
+            document.getElementById('leaderboardUI').classList.remove('hidden');
+        };
+
+        window.closeLeaderboard = () => {
+            document.getElementById('leaderboardUI').classList.add('hidden');
+        };
+
         function handleLevelUp() {
             sounds.LEVEL(); gameActive = false;
             const container = document.getElementById('optionsContainer');
@@ -518,7 +593,7 @@
             state.asteroids.forEach((a, ai) => {
                 if (Math.hypot(state.player.x - a.x, state.player.y - a.y) < state.player.r + a.r) {
                     if (runStats.shieldActive) { runStats.shieldActive = false; state.asteroids.splice(ai, 1); state.shake = 20; }
-                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
+                    else { gameActive = false; showDeathScreen(); }
                 }
                 state.bullets.forEach((b, bi) => {
                     if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
@@ -549,7 +624,7 @@
             state.particles.forEach((p, pi) => {
                 if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
                     if (runStats.shieldActive) { runStats.shieldActive = false; state.particles.splice(pi, 1); state.shake = 15; }
-                    else { gameActive = false; document.getElementById('menu').classList.remove('hidden'); }
+                    else { gameActive = false; showDeathScreen(); }
                 }
             });
 
