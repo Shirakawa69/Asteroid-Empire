@@ -99,12 +99,51 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase Setup
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- GITHUB READY FIX ---
+        let db = null;
+        let auth = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+
+        if (typeof __firebase_config !== 'undefined') {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            const initAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            };
+            initAuth();
+
+            onAuthStateChanged(auth, u => {
+                user = u;
+                if (user) {
+                    const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
+                    onSnapshot(savePath, (snap) => {
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            money = data.money || 0;
+                            upgrades = data.upgrades || upgrades;
+                            updateHUD();
+                            updateShopUI();
+                        }
+                    });
+                }
+            });
+        } else {
+            console.warn("Firebase config not found. Running in local mode (no cloud saves).");
+        }
+
+        async function save() {
+            if (!user || !db) return;
+            const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
+            await setDoc(savePath, { money, upgrades }, { merge: true });
+        }
+        // --- END FIX ---
 
         // Sound Engine
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -148,10 +187,10 @@
             multiShot: 1, 
             wingmen: [],
             pathUpgrades: {
-                VULCAN: 1, // Rapid Fire Mult
-                STRIKER: 1, // Seeker Speed Mult
-                ION: 1, // Laser Width
-                TITAN: 1 // Spread Count
+                VULCAN: 1,
+                STRIKER: 1,
+                ION: 1,
+                TITAN: 1
             }
         };
         
@@ -171,38 +210,6 @@
             ION: { rate: 900, color: '#22d3ee', bulletSpeed: 40, laser: true },
             TITAN: { rate: 600, color: '#fbbf24', bulletSpeed: 14 }
         };
-
-        // Auth
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        };
-        initAuth();
-
-        onAuthStateChanged(auth, u => {
-            user = u;
-            if (user) {
-                const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-                onSnapshot(savePath, (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        money = data.money || 0;
-                        upgrades = data.upgrades || upgrades;
-                        updateHUD();
-                        updateShopUI();
-                    }
-                });
-            }
-        });
-
-        async function save() {
-            if (!user) return;
-            const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-            await setDoc(savePath, { money, upgrades }, { merge: true });
-        }
 
         window.selectWeapon = (id) => {
             selectedWeapon = id;
@@ -283,13 +290,11 @@
             const container = document.getElementById('optionsContainer');
             container.innerHTML = '';
             
-            // Universal options
             const generalOpts = [
                 { name: "🛡️ Plasma Shield", desc: "Gain 1-hit protection", run: () => state.player.shield = true },
                 { name: "🔋 Battery Boost", desc: "Fire Rate +15%", run: () => upgrades.playerFireRate *= 1.15 }
             ];
 
-            // Specific path options
             const pathOpts = {
                 VULCAN: { name: "🌪️ Storm Rounds", desc: "Double Projectile Speed", run: () => upgrades.pathUpgrades.VULCAN *= 1.5 },
                 STRIKER: { name: "🏹 Tracker V2", desc: "Better Seeking Speed", run: () => upgrades.pathUpgrades.STRIKER += 0.5 },
@@ -336,7 +341,6 @@
                 ctx.fillRect(s.x, s.y, 2, 2);
             });
 
-            // Player Fire
             const weapon = WEAPONS[selectedWeapon];
             if (now - state.lastWeaponShot > (weapon.rate / upgrades.playerFireRate)) {
                 sounds[selectedWeapon]();
@@ -377,7 +381,6 @@
                 state.lastWeaponShot = now;
             }
 
-            // Wingmen Fire
             upgrades.wingmen.forEach(wm => {
                 if (now - (wm.lastShot || 0) > 500) {
                     state.bullets.push({ x: state.player.x + wm.ox, y: state.player.y + wm.oy, vx: 0, vy: -18, c: '#34d399', d: upgrades.playerDmg });
@@ -385,12 +388,10 @@
                 }
             });
 
-            // Spawning
             if (Math.random() < 0.03 + (state.difficulty * 0.01)) {
                 state.asteroids.push({ x: Math.random()*canvas.width, y: -50, r: 15+Math.random()*30, hp: 1+Math.floor(state.difficulty*2), s: 2+Math.random()*3 });
             }
 
-            // Physics
             state.bullets.forEach(b => {
                 if(b.seeking && state.asteroids.length > 0) {
                     const target = state.asteroids[0];
@@ -402,7 +403,6 @@
             });
             state.asteroids.forEach(a => { a.y += a.s; });
 
-            // Collisions
             state.asteroids.forEach((ast, i) => {
                 const dist = Math.hypot(state.player.x - ast.x, state.player.y - ast.y);
                 if (dist < state.player.r + ast.r) {
@@ -436,7 +436,6 @@
             state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200 && b.x > -200 && b.x < canvas.width + 200);
             state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
 
-            // Render
             state.bullets.forEach(b => { 
                 ctx.fillStyle = b.c;
                 if(b.laser) {
@@ -481,7 +480,6 @@
                 ctx.stroke(); 
             }
 
-            // Ship
             ctx.fillStyle = '#6366f1';
             ctx.beginPath(); 
             ctx.moveTo(state.player.x, state.player.y-25); 
