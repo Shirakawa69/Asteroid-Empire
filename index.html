@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Asteroid Empire - STORM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #020617; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #020617; font-family: sans-serif; touch-action: none; }
         canvas { display: block; }
         .no-select { user-select: none; -webkit-tap-highlight-color: transparent; }
         .weapon-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -99,6 +99,8 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
+        console.log("Pookie, the script is running! 🚀");
+
         // Global State
         let db = null;
         let auth = null;
@@ -120,36 +122,39 @@
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'asteroid-empire-storm';
 
+        // Firebase logic
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-            const firebaseConfig = JSON.parse(__firebase_config);
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-            const initAuth = async () => {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            };
-            initAuth();
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
 
-            onAuthStateChanged(auth, u => {
-                user = u;
-                if (user) {
-                    const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-                    onSnapshot(savePath, (snap) => {
-                        if (snap.exists()) {
-                            const data = snap.data();
-                            money = data.money || 0;
-                            upgrades = data.upgrades || upgrades;
-                            updateHUD();
-                            updateShopUI();
-                        }
-                    });
-                }
-            });
+                onAuthStateChanged(auth, u => {
+                    user = u;
+                    if (user) {
+                        const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
+                        onSnapshot(savePath, (snap) => {
+                            if (snap.exists()) {
+                                const data = snap.data();
+                                money = data.money || 0;
+                                upgrades = data.upgrades || upgrades;
+                                updateHUD();
+                                updateShopUI();
+                            }
+                        });
+                    }
+                });
+            } catch(e) { console.error("Firebase init failed:", e); }
         }
 
         async function save() {
@@ -206,6 +211,7 @@
 
         // --- GLOBAL EXPORTS ---
         window.selectWeapon = (id) => {
+            console.log("Weapon selected:", id);
             selectedWeapon = id;
             document.querySelectorAll('.weapon-card').forEach(card => card.classList.remove('selected'));
             document.getElementById('card-' + id).classList.add('selected');
@@ -218,6 +224,7 @@
 
         window.startGame = () => {
             if(!selectedWeapon) return;
+            console.log("Game starting!");
             gameActive = true;
             score = 0;
             level = 1;
@@ -496,8 +503,13 @@
 
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
         window.addEventListener('mousemove', handleInput);
-        window.addEventListener('touchstart', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); });
+        window.addEventListener('mousedown', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); });
+        window.addEventListener('touchstart', (e) => { 
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            handleInput(e);
+        }, {passive: true});
         window.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
+        
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
     </script>
