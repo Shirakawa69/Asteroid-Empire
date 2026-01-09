@@ -177,9 +177,9 @@
         const SUPABASE_KEY = 'sb_publishable_rV-2CqzKNSALBa2Yi-1JHA_1YNx5oja';
         
         // Initialize Supabase Client
-        let supabase = null;
+        let supabaseClient = null;
         if(SUPABASE_URL !== 'https://xrxkzefioxznsnyjuohl.supabase.co') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         } else {
             console.warn("⚠️ SUPABASE KEYS MISSING! Leaderboard will not work.");
         }
@@ -414,19 +414,19 @@
         // --- NEW SUPABASE LEADERBOARD FUNCTIONS ---
         window.submitScore = async () => {
             const nickname = document.getElementById('nicknameInput').value.trim() || 'Anonymous';
-            if (!supabase) {
+            if (!supabaseClient) {
                 alert("Cannot submit: Supabase not configured in code.");
                 return;
             }
 
             try {
                 // Insert into Supabase table 'leaderboard'
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('leaderboard')
                     .insert([{ nickname: nickname, wave: runStats.wave }]);
 
                 if (error) throw error;
-                
+
                 console.log('Score submitted to Supabase');
                 returnToMenu();
             } catch (error) {
@@ -443,8 +443,8 @@
         window.showLeaderboard = async () => {
             document.getElementById('leaderboardUI').classList.remove('hidden');
             const list = document.getElementById('leaderboardList');
-            
-            if (!supabase) {
+
+            if (!supabaseClient) {
                 list.innerHTML = '<div class="text-red-500 text-center">Supabase Keys Missing!</div>';
                 return;
             }
@@ -453,7 +453,7 @@
 
             try {
                 // Fetch top 20 scores from Supabase
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('leaderboard')
                     .select('*')
                     .order('wave', { ascending: false })
