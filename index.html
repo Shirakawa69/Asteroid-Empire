@@ -178,7 +178,7 @@
         
         // Initialize Supabase Client
         let supabaseClient = null;
-        if(SUPABASE_URL !== 'https://xrxkzefioxznsnyjuohl.supabase.co') {
+        if(SUPABASE_URL && SUPABASE_KEY) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         } else {
             console.warn("⚠️ SUPABASE KEYS MISSING! Leaderboard will not work.");
