@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asteroid Empire - STORM</title>
+    <title>Asteroid Empire - STORM (Supabase Ed.)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #020617; font-family: sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -21,12 +22,10 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Warning Overlay -->
     <div id="warningOverlay" class="absolute inset-0 flex items-center justify-center bg-red-900/20 z-40 animate-pulse">
         <h2 class="text-6xl font-black text-red-500 italic tracking-tighter">BOSS APPROACHING</h2>
     </div>
 
-    <!-- HUD -->
     <div id="hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none flex flex-col items-center gap-2">
         <div id="bossBarContainer" class="w-full max-w-xl mb-2">
             <div class="text-center text-red-500 font-black text-xs uppercase tracking-widest mb-1">GOLIATH CLASS THREAT</div>
@@ -43,7 +42,6 @@
         </div>
     </div>
 
-    <!-- Main Menu -->
     <div id="menu" class="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50">
         <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-indigo-500/50 w-full max-w-2xl text-center shadow-2xl">
             <div class="flex justify-between items-start mb-4">
@@ -80,7 +78,6 @@
         </div>
     </div>
 
-    <!-- Pause Menu -->
     <div id="pauseUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm z-[100]">
         <div class="bg-slate-900 p-10 rounded-[2rem] border-2 border-white/10 w-[300px] text-center shadow-2xl">
             <h2 class="text-4xl font-black mb-8 italic text-indigo-400">PAUSED</h2>
@@ -93,7 +90,6 @@
         </div>
     </div>
 
-    <!-- Settings Menu -->
     <div id="settingsUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[110]">
         <div class="bg-slate-900 p-8 rounded-3xl border border-white/10 w-[350px] text-center">
             <h2 class="text-2xl font-black mb-6">SETTINGS</h2>
@@ -110,7 +106,6 @@
         </div>
     </div>
 
-    <!-- Shop (Armory) -->
     <div id="shopUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[60]">
         <div class="bg-slate-950 p-8 rounded-[2rem] border-2 border-indigo-500/20 w-full max-w-md shadow-2xl">
             <div class="flex justify-between items-center mb-6">
@@ -144,14 +139,12 @@
         </div>
     </div>
 
-    <!-- Evolution (Level Up) -->
     <div id="levelUpUI" class="absolute inset-0 hidden flex flex-col items-center justify-center bg-black/95 z-50 p-6 text-center">
         <h2 class="text-6xl font-black text-yellow-400 mb-2 italic animate-pulse">EVOLUTION</h2>
         <p class="text-indigo-300 mb-8 font-bold">SELECT A PATH UPGRADE</p>
         <div id="optionsContainer" class="flex flex-col gap-4 w-full max-w-md"></div>
     </div>
 
-    <!-- Leaderboard -->
     <div id="leaderboardUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/90 z-[60]">
         <div class="bg-slate-950 p-8 rounded-[2rem] border-2 border-indigo-500/20 w-full max-w-md shadow-2xl">
             <div class="flex justify-between items-center mb-6">
@@ -159,12 +152,11 @@
                 <button onclick="window.closeLeaderboard()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors text-xl">✕</button>
             </div>
             <div id="leaderboardList" class="space-y-2 max-h-96 overflow-y-auto">
-                <!-- Leaderboard entries will be populated here -->
+                <div class="text-slate-500 text-center py-4">Loading scores...</div>
             </div>
         </div>
     </div>
 
-    <!-- Death Screen -->
     <div id="deathUI" class="absolute inset-0 hidden flex items-center justify-center bg-black/95 z-50 p-6 text-center">
         <div class="bg-slate-900 p-8 rounded-[2rem] border border-red-500/50 w-full max-w-md shadow-2xl">
             <h2 class="text-6xl font-black text-red-400 mb-4 italic">GAME OVER</h2>
@@ -178,20 +170,46 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+    <script>
+        // --- SUPABASE CONFIGURATION ---
+        // Pookie, put your keys here from supabase.com!
+        const SUPABASE_URL = 'https://xrxkzefioxznsnyjuohl.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_rV-2CqzKNSALBa2Yi-1JHA_1YNx5oja';
+        
+        // Initialize Supabase Client
+        let supabase = null;
+        if(SUPABASE_URL !== 'https://xrxkzefioxznsnyjuohl.supabase.co') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else {
+            console.warn("⚠️ SUPABASE KEYS MISSING! Leaderboard will not work.");
+        }
 
         // Global State
-        let db, auth, user, gameActive = false, isPaused = false, money = 0;
+        let gameActive = false, isPaused = false, money = 0;
         
-        // Permanent Armory State (Saved)
+        // Local Persistence (Save data locally to browser)
+        function loadLocalData() {
+            const data = localStorage.getItem('asteroid_save');
+            if(data) {
+                const parsed = JSON.parse(data);
+                money = parsed.money || 0;
+                if(parsed.armory) armory = parsed.armory;
+            }
+        }
+        
+        function saveLocalData() {
+            localStorage.setItem('asteroid_save', JSON.stringify({ money, armory }));
+        }
+
+        // Permanent Armory State
         let armory = {
             playerFireRate: 1,
             playerDmg: 1,
             wingmenCount: 0
         };
+
+        // Initialize Data
+        loadLocalData();
 
         // Current Run Evolution State (Resets)
         let runStats = {
@@ -210,7 +228,7 @@
             asteroids: [], particles: [], 
             player: { x: 0, y: 0, tx: 0, ty: 0, r: 18 }, 
             boss: null,
-            runWingmen: [] // Logic for positioning wingmen during run
+            runWingmen: [] 
         };
 
         const WEAPONS = {
@@ -239,49 +257,6 @@
             LEVEL: () => playSfx(600, 'sine', 0.8, 0.15),
             BOSS_SHOT: () => playSfx(120, 'square', 0.2, 0.08)
         };
-
-        // --- FIREBASE SYNC ---
-        const appId = 'asteroid-empire-storm';
-        try {
-            const firebaseConfig = {
-                apiKey: "AIzaSyDz63J76Y7bISc4YQPqTshVIbmN_2HMJRo",
-                authDomain: "asteroid-8487c.firebaseapp.com",
-                projectId: "asteroid-8487c",
-                storageBucket: "asteroid-8487c.firebasestorage.app",
-                messagingSenderId: "795753092726",
-                appId: "1:795753092726:web:7c2fb602507470a45e3157",
-                measurementId: "G-Y9NDV6RT86"
-            };
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-
-            const initAuth = async () => {
-                await signInAnonymously(auth);
-            };
-            initAuth();
-
-            onAuthStateChanged(auth, u => {
-                user = u;
-                if (user) {
-                    const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-                    onSnapshot(savePath, (snap) => {
-                        if (snap.exists()) {
-                            const data = snap.data();
-                            money = data.money || 0;
-                            if(data.armory) armory = data.armory;
-                            updateHUD(); updateShopUI();
-                        }
-                    });
-                }
-            });
-        } catch(e) { console.error("Firebase fail", e); }
-
-        async function saveGlobalState() {
-            if (!user || !db) return;
-            const savePath = doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'global');
-            await setDoc(savePath, { money, armory }, { merge: true });
-        }
 
         // --- CORE LOGIC ---
         function spawnEnemy() {
@@ -358,7 +333,6 @@
             if(!selectedWeapon) return;
             gameActive = true; isPaused = false;
             
-            // Reset Run Stats
             runStats = {
                 xp: 0, nextLevelXp: 1000, level: 1,
                 wave: 1, waveProgress: 0, bossActive: false,
@@ -370,7 +344,6 @@
             state.player.x = canvas.width/2; state.player.y = canvas.height*0.8;
             state.player.tx = state.player.x; state.player.ty = state.player.y;
             
-            // Setup Wingmen for this run based on Armory
             state.runWingmen = [];
             for(let i=0; i < armory.wingmenCount; i++) {
                 const side = i % 2 === 0 ? 1 : -1;
@@ -425,7 +398,7 @@
                     money -= cost;
                 }
             }
-            saveGlobalState(); updateHUD(); updateShopUI();
+            saveLocalData(); updateHUD(); updateShopUI();
         };
 
         function initStars() {
@@ -438,28 +411,27 @@
             document.getElementById('deathUI').classList.remove('hidden');
         }
 
+        // --- NEW SUPABASE LEADERBOARD FUNCTIONS ---
         window.submitScore = async () => {
             const nickname = document.getElementById('nicknameInput').value.trim() || 'Anonymous';
-            if (!user || !db) {
-                console.error('Firebase not initialized: user or db is missing');
-                alert('Score submission failed: Firebase not configured. Please check console for details.');
+            if (!supabase) {
+                alert("Cannot submit: Supabase not configured in code.");
                 return;
             }
+
             try {
-                const scoreData = { nickname, wave: runStats.wave, timestamp: Date.now() };
-                const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
-                // Assuming scores are stored as an array in a document
-                const snap = await getDoc(leaderboardPath);
-                let scores = snap.exists() ? snap.data().scores || [] : [];
-                scores.push(scoreData);
-                scores.sort((a, b) => b.wave - a.wave);
-                scores = scores.slice(0, 10); // Keep top 10
-                await setDoc(leaderboardPath, { scores });
-                console.log('Score submitted successfully');
+                // Insert into Supabase table 'leaderboard'
+                const { error } = await supabase
+                    .from('leaderboard')
+                    .insert([{ nickname: nickname, wave: runStats.wave }]);
+
+                if (error) throw error;
+                
+                console.log('Score submitted to Supabase');
                 returnToMenu();
             } catch (error) {
                 console.error('Error submitting score:', error);
-                alert('Score submission failed. Please check console for details.');
+                alert('Failed to submit score. Check console.');
             }
         };
 
@@ -469,19 +441,42 @@
         };
 
         window.showLeaderboard = async () => {
-            if (!db) return;
-            const leaderboardPath = doc(db, 'artifacts', appId, 'leaderboard', 'scores');
-            const snap = await getDoc(leaderboardPath);
-            const scores = snap.exists() ? snap.data().scores || [] : [];
-            const list = document.getElementById('leaderboardList');
-            list.innerHTML = '';
-            scores.forEach((s, i) => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center bg-slate-800 p-3 rounded-xl";
-                div.innerHTML = `<div class="font-bold text-indigo-400">#${i+1} ${s.nickname}</div><div class="font-black text-yellow-400">Wave ${s.wave}</div>`;
-                list.appendChild(div);
-            });
             document.getElementById('leaderboardUI').classList.remove('hidden');
+            const list = document.getElementById('leaderboardList');
+            
+            if (!supabase) {
+                list.innerHTML = '<div class="text-red-500 text-center">Supabase Keys Missing!</div>';
+                return;
+            }
+
+            list.innerHTML = '<div class="text-slate-500 text-center py-4">Loading global scores...</div>';
+
+            try {
+                // Fetch top 20 scores from Supabase
+                const { data, error } = await supabase
+                    .from('leaderboard')
+                    .select('*')
+                    .order('wave', { ascending: false })
+                    .limit(20);
+
+                if (error) throw error;
+
+                list.innerHTML = '';
+                if(data.length === 0) {
+                    list.innerHTML = '<div class="text-slate-500 text-center">No scores yet. Be the first!</div>';
+                }
+
+                data.forEach((s, i) => {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between items-center bg-slate-800 p-3 rounded-xl";
+                    div.innerHTML = `<div class="font-bold text-indigo-400">#${i+1} ${s.nickname}</div><div class="font-black text-yellow-400">Wave ${s.wave}</div>`;
+                    list.appendChild(div);
+                });
+
+            } catch(e) {
+                console.error(e);
+                list.innerHTML = '<div class="text-red-500 text-center">Error loading scores.</div>';
+            }
         };
 
         window.closeLeaderboard = () => {
@@ -503,7 +498,7 @@
             const opts = [
                 pathOptions[selectedWeapon],
                 { name: "🛡️ Plasma Shield", desc: "Passive protection", run: () => runStats.shieldActive = true },
-                { name: "🔋 Battery Overload", desc: "Instant Run Speed +20%", run: () => armory.playerFireRate *= 1.2 } // Note: Temporary run buff? Logic kept simple
+                { name: "🔋 Battery Overload", desc: "Instant Run Speed +20%", run: () => armory.playerFireRate *= 1.2 } 
             ];
 
             opts.forEach(o => {
@@ -575,126 +570,154 @@
                 }
                 if (now - b.lastAimedShot > 2000) {
                     const angleToPlayer = Math.atan2(state.player.y - b.y, state.player.x - b.x);
-                    for(let i=-1; i<=1; i++) {
-                        const a = angleToPlayer + (i * 0.2);
-                        state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, r: 10, enemy: true, c: '#ef4444' });
-                    }
-                    b.lastAimedShot = now; state.shake = 10;
+                    state.particles.push({ x: b.x, y: b.y, vx: Math.cos(angleToPlayer)*8, vy: Math.sin(angleToPlayer)*8, r: 12, enemy: true, c: '#dc2626' });
+                    b.lastAimedShot = now;
                 }
-                ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
-                ctx.fillStyle = '#0f172a'; ctx.fill();
-                const pulse = Math.sin(now * 0.01) * 10;
-                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 30 + pulse, 0, Math.PI*2); ctx.fill();
-                if (b.hp <= 0) {
-                    money += 5000; runStats.xp += 3000; runStats.wave++; runStats.waveProgress = 0; runStats.bossActive = false; state.boss = null;
-                    document.getElementById('bossBarContainer').style.display = 'none';
-                    state.shake = 60; sounds.EXPLODE(); updateHUD(); saveGlobalState();
-                }
+                ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 4; ctx.stroke();
             }
 
-            state.bullets.forEach(b => {
-                if(b.seeking && state.asteroids.length > 0) {
-                    const target = state.asteroids[0];
-                    const angle = Math.atan2(target.y - b.y, target.x - b.x);
-                    b.vx += Math.cos(angle); b.vy += Math.sin(angle);
+            state.bullets.forEach((b, i) => {
+                if(b.seeking) {
+                    let target = state.asteroids[0];
+                    if(target) {
+                        let angle = Math.atan2(target.y - b.y, target.x - b.x);
+                        b.vx += Math.cos(angle) * 1; b.vy += Math.sin(angle) * 1;
+                        b.vx *= 0.9; b.vy *= 0.9;
+                    }
                 }
                 b.x += b.vx; b.y += b.vy;
+                if(b.laser) {
+                    ctx.save(); ctx.globalCompositeOperation='screen';
+                    ctx.strokeStyle = b.c; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(b.x, b.y+30); ctx.lineTo(b.x, b.y-50); ctx.stroke();
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(b.x, b.y, b.mega ? 12 : 5, 0, Math.PI*2); ctx.fill();
+                }
+                if(b.y < -50) state.bullets.splice(i, 1);
             });
 
-            state.asteroids.forEach(a => a.y += a.s);
-            state.particles.forEach(p => { p.x += p.vx; p.y += p.vy; });
-
-            state.asteroids.forEach((a, ai) => {
-                if (Math.hypot(state.player.x - a.x, state.player.y - a.y) < state.player.r + a.r) {
-                    if (runStats.shieldActive) { runStats.shieldActive = false; state.asteroids.splice(ai, 1); state.shake = 20; }
-                    else { gameActive = false; showDeathScreen(); }
+            state.asteroids.forEach((a, i) => {
+                a.y += a.s;
+                ctx.fillStyle = a.color; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+                
+                if (Math.hypot(a.x - state.player.x, a.y - state.player.y) < a.r + state.player.r) {
+                    if(!runStats.shieldActive) {
+                        state.asteroids.splice(i, 1);
+                        showDeathScreen(); gameActive = false;
+                    } else {
+                        state.asteroids.splice(i, 1);
+                        runStats.shieldActive = false;
+                        state.shake = 20;
+                        sounds.EXPLODE();
+                    }
                 }
+
                 state.bullets.forEach((b, bi) => {
                     if (Math.hypot(b.x - a.x, b.y - a.y) < a.r + 10) {
                         a.hp -= b.d;
+                        state.particles.push({ x: a.x, y: a.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, r: 3, c: a.color });
+                        
+                        if(!b.p && !b.laser) state.bullets.splice(bi, 1);
                         if(b.cluster) {
-                            for(let i=0; i<3; i++) state.bullets.push({x:a.x, y:a.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, c:b.c, d:b.d/2});
+                            for(let k=0; k<3; k++) state.bullets.push({ x: a.x, y: a.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, c: b.c, d: b.d*0.5 });
                         }
-                        if(b.mega) state.shake = 15;
-                        if (!b.laser && !b.p) state.bullets.splice(bi, 1);
+                        
                         if (a.hp <= 0) {
-                            money += a.reward; runStats.xp += a.xp; state.asteroids.splice(ai, 1);
-                            sounds.EXPLODE(); updateHUD(); saveGlobalState();
-                            if(runStats.xp >= runStats.nextLevelXp) { runStats.level++; runStats.xp = 0; runStats.nextLevelXp *= 1.5; handleLevelUp(); }
+                            state.asteroids.splice(i, 1);
+                            sounds.EXPLODE();
+                            money += a.reward; runStats.xp += a.xp;
+                            if(runStats.xp >= runStats.nextLevelXp) {
+                                runStats.level++;
+                                runStats.xp = 0;
+                                runStats.nextLevelXp *= 1.5;
+                                handleLevelUp();
+                            }
+                            updateHUD();
                         }
                     }
                 });
+
+                if(a.y > canvas.height + 50) state.asteroids.splice(i, 1);
             });
 
             if (state.boss) {
                 state.bullets.forEach((b, bi) => {
-                    if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.r) {
-                        state.boss.hp -= b.d; if(!b.laser && !b.p) state.bullets.splice(bi, 1);
-                        updateHUD();
+                    if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.r + 10) {
+                        state.boss.hp -= b.d;
+                        state.particles.push({ x: b.x, y: b.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, r: 4, c: '#f87171' });
+                        if(!b.p && !b.laser) state.bullets.splice(bi, 1);
                     }
                 });
+                if (state.boss.hp <= 0) {
+                    state.boss = null;
+                    runStats.bossActive = false;
+                    runStats.wave++;
+                    runStats.waveProgress = 0;
+                    money += 5000;
+                    sounds.LEVEL();
+                    updateHUD();
+                }
             }
 
-            state.particles.forEach((p, pi) => {
-                if (p.enemy && Math.hypot(state.player.x - p.x, state.player.y - p.y) < state.player.r + p.r) {
-                    if (runStats.shieldActive) { runStats.shieldActive = false; state.particles.splice(pi, 1); state.shake = 15; }
-                    else { gameActive = false; showDeathScreen(); }
+            state.particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.r *= 0.95;
+                ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+                if(p.r < 0.5) state.particles.splice(i, 1);
+                
+                if (p.enemy && Math.hypot(p.x - state.player.x, p.y - state.player.y) < state.player.r) {
+                    if(!runStats.shieldActive) {
+                        showDeathScreen(); gameActive = false;
+                    } else {
+                        state.particles.splice(i, 1);
+                        runStats.shieldActive = false;
+                        state.shake = 20;
+                        sounds.EXPLODE();
+                    }
                 }
             });
 
-            state.bullets = state.bullets.filter(b => b.y > -200 && b.y < canvas.height + 200);
-            state.asteroids = state.asteroids.filter(a => a.y < canvas.height + 100);
-            state.particles = state.particles.filter(p => p.y < canvas.height + 200 && p.y > -200);
-
-            state.bullets.forEach(b => { 
-                ctx.fillStyle = b.c; 
-                if(b.laser) ctx.fillRect(b.x-8, b.y, 16, 200);
-                else { ctx.beginPath(); ctx.arc(b.x, b.y, b.mega ? 15 : 5, 0, Math.PI*2); ctx.fill(); }
-            });
-
-            state.asteroids.forEach(a => {
-                ctx.strokeStyle = a.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.stroke();
-                ctx.fillStyle = '#1e293b'; ctx.fill();
-            });
-
-            state.particles.forEach(p => { 
-                ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r || 2, 0, Math.PI*2); ctx.fill(); 
-                if(p.enemy) { ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke(); }
-            });
-
-            if (runStats.shieldActive) { 
-                ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 35, 0, Math.PI*2); ctx.stroke(); 
-            }
+            ctx.fillStyle = selectedWeapon === 'VULCAN' ? '#818cf8' : selectedWeapon === 'STRIKER' ? '#f472b6' : selectedWeapon === 'ION' ? '#22d3ee' : '#fbbf24';
+            ctx.beginPath(); 
+            ctx.moveTo(state.player.x, state.player.y-20);
+            ctx.lineTo(state.player.x-15, state.player.y+15);
+            ctx.lineTo(state.player.x+15, state.player.y+15);
+            ctx.fill();
             
-            ctx.fillStyle = '#6366f1'; 
-            ctx.beginPath(); ctx.moveTo(state.player.x, state.player.y-25); ctx.lineTo(state.player.x+20, state.player.y+15); ctx.lineTo(state.player.x-20, state.player.y+15); ctx.fill();
+            if(runStats.shieldActive) {
+                ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 30, 0, Math.PI*2); ctx.stroke();
+            }
 
-            if (state.shake > 0) ctx.restore();
+            state.runWingmen.forEach(wm => {
+                ctx.fillStyle = '#34d399'; ctx.beginPath(); ctx.arc(state.player.x + wm.ox, state.player.y + wm.oy, 8, 0, Math.PI*2); ctx.fill();
+            });
+
+            if(state.shake > 0) ctx.restore();
             requestAnimationFrame(loop);
         }
 
-        function handleInput(e) {
-            if (isPaused) return;
-            const rect = canvas.getBoundingClientRect();
-            const cx = e.touches ? e.touches[0].clientX : e.clientX;
-            const cy = e.touches ? e.touches[0].clientY : e.clientY;
-            state.player.tx = cx - rect.left; state.player.ty = cy - rect.top;
-        }
+        // Input
+        window.addEventListener('pointermove', e => {
+            if(isPaused) return;
+            state.player.tx = e.clientX;
+            state.player.ty = e.clientY;
+        });
 
-        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
-        window.addEventListener('mousemove', handleInput);
-        window.addEventListener('touchstart', handleInput);
-        window.addEventListener('touchmove', (e) => { if(!isPaused) e.preventDefault(); handleInput(e); }, {passive: false});
-        
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && gameActive && document.getElementById('levelUpUI').classList.contains('hidden')) {
-                isPaused = !isPaused;
-                if (isPaused) document.getElementById('pauseUI').classList.remove('hidden');
-                else document.getElementById('pauseUI').classList.add('hidden');
+        window.addEventListener('keydown', e => {
+            if(e.key === 'Escape') {
+                if(gameActive) {
+                    isPaused = !isPaused;
+                    const ui = document.getElementById('pauseUI');
+                    if(isPaused) ui.classList.remove('hidden'); else ui.classList.add('hidden');
+                }
             }
         });
 
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+        updateHUD(); updateShopUI();
     </script>
 </body>
 </html>
